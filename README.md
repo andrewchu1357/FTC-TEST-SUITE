@@ -7,9 +7,9 @@ We have compiled a few versions of this simulation built for different kinds of 
 
 | Hardware | How it runs |
 | :--- | :--- |
-|MacOS(Arm)|Works smoothly(16gb RAM for optimal performance)|
+|MacOS(Arm)|Works smoothly(Optimized for MacOS)|
 |MacOS(Intel)|Work in progress|
-|Windows(Intel/AMD)| Works smoothly(runs with igpu) |
+|Windows(Intel/AMD)| Works smoothly(runs easily) |
 |Linux(Intel/AMD)|Work in progress|
 |Chromebook/web based|Runs in a browser localy(less functional)|
 
