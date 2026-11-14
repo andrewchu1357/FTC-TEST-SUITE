@@ -2,8 +2,8 @@
 
 FTC Test Suite is licensed under the Apache License 2.0 (see [LICENSE](LICENSE)). It uses the
 software below, each under its own license. The libraries are downloaded by Gradle when you
-build; the packaged apps (the Windows zips) contain them, and this file goes with those
-packages.
+build; the packaged apps (the Windows zips and `.exe`, the Mac DMG) contain them, and this file
+goes with those packages.
 
 ## Libraries in the simulator
 
@@ -86,5 +86,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 The BIOBUZZ field and scoring are the authors' reading of FIRST's public game documents, and
 dimensions are taken from them. They are modeling data, not FIRST's CAD or its manual's text.
-The sounds are made by the simulator. The BuzzBot model is generated from published part
-dimensions (goBILDA and REV) by `tools/BuzzBotCad.java`.
+The sounds are made by the simulator (no recordings are included). The BuzzBot model is generated
+from published part dimensions (goBILDA and REV) by `tools/BuzzBotCad.java`, and ExampleBot's
+model was made for this project too. The app icon is drawn by `packaging/macos/IconGen.java`, and
+the pictures in `docs/` are of this app.

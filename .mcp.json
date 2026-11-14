@@ -1,8 +1,8 @@
 {
   "mcpServers": {
     "ftc-sim": {
-      "command": "cmd",
-      "args": ["/c", "tools\\ftc-sim-mcp.cmd"]
+      "command": "./tools/ftc-sim-mcp",
+      "args": []
     }
   }
 }

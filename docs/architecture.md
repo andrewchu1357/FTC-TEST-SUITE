@@ -27,7 +27,9 @@ How the simulator is put together, for anyone changing it. For *using* it, see t
 | `TeamCode/` | `org.firstinspires.ftc.teamcode` | BuzzBot, the calibration OpModes, the starter examples, and most tests. Java 8, so it also builds in Android Studio. |
 | `demo/` | `org.ftctestbed.viewer.demo` | The self-running demo app (`DemoMain` drives `MainWindow` by reflection). |
 | `robots/` | | Robot packages: config, code, CAD model. |
-| `tools/` | | `BuzzBotCad.java` (the CAD generator), `ftc-sim-mcp.cmd` (agent launcher), `find-java.cmd` (finds or downloads Java 21). |
+| `tools/` | | `BuzzBotCad.java` (the CAD generator), `ftc-sim-mcp` and `ftc-sim-mcp.cmd` (agent launchers), `find-java.cmd` (finds or downloads Java 21 on Windows), `mac-release.sh` (builds and checks the Mac release). |
+| `packaging/macos/` | | `IconGen.java`, which draws the app icon. |
+| `packaging/windows/` | | `SingleExe.cs`, the one-file Windows launcher (`windowsExe`). |
 | `gradle/windows-app.gradle` | | How the Windows app folders are packaged. |
 | `viewer/…/platform/` | `org.ftctestbed.viewer.platform` | What differs between systems, in one place: `Os` (which key starts a shortcut, how shortcuts are written, the fixed-width font), `Win32` (the few things asked of Windows itself), `AppHome` (a packaged app's working folder, starter files and log), `DevLaunch` (the from-source launcher on Windows). |
 
@@ -142,7 +144,7 @@ slots 2–3 drive robot 2).
 - **2D.** `FieldPanel` and `FieldRenderer` with cached layers.
 - **Input.** `PhysicalGamepads` (Jamepad/SDL2: PS4, PS5, Xbox, F310), `KeyboardGamepad`, and
   `DriverStation` (100 Hz, with the real Driver Station's dead zones and delay).
-- **Code tab.** `CodePanel`, `CodeSession` and `CodeWorkspace` (RSyntaxTextArea). Ctrl+R saves,
+- **Code tab.** `CodePanel`, `CodeSession` and `CodeWorkspace` (RSyntaxTextArea). ⌘R saves,
   checks the code compiles, then reloads the window and runs the OpMode.
 - **Each system's own ways** (`platform/`). Shortcuts are written once, the way a Mac shows
   them (`Os.stroke("⇧⌘R")`, `Os.text("… (⌘P)")`), and become Ctrl+Shift+R and Ctrl+P on

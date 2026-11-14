@@ -178,7 +178,7 @@ public final class AgentMain {
                         + (r.statusCode() == 401 ? " The token differs: set the same \"token\" in config/agent-api.jsonc, or pass --token." : ""));
             } catch (ConnectException | java.net.http.HttpConnectTimeoutException e) {
                 return unreachable(fallback, msg, "The simulator window isn't serving agents at " + uri + ". Open FTC Test Suite with "
-                        + "\"enabled\": true in config/agent-api.jsonc (port " + p + "), or use the headless server (tools\\ftc-sim-mcp.cmd without --live).");
+                        + "\"enabled\": true in config/agent-api.jsonc (port " + p + "), or use the headless server (tools/ftc-sim-mcp without --live).");
             } catch (IOException e) {
                 return unreachable(fallback, msg, "Lost the connection to the window: " + e.getMessage());
             } catch (InterruptedException e) {

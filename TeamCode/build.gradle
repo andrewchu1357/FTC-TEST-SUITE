@@ -62,7 +62,7 @@ tasks.register('extractAars') {
 }
 
 // ---------------------------------------------------------------------------------------
-// Automated tests: run your OpModes in the simulator with JUnit (gradlew test).
+// Automated tests: run your OpModes in the simulator with JUnit (./gradlew test).
 // The simulator is a test-only dependency - nothing here ends up in your robot code.
 dependencies {
     testImplementation project(':sim-core')

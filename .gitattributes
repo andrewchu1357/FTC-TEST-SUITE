@@ -1,11 +1,16 @@
-# Windows batch files need CRLF line endings, whatever the system they are checked out on.
+# Windows batch files need CRLF; shell scripts and the Gradle wrapper script need LF
+# (a checkout on the other system would break them otherwise).
 * text=auto
 *.bat text eol=crlf
 *.cmd text eol=crlf
+gradlew text eol=lf
+tools/ftc-sim-mcp text eol=lf
+*.sh text eol=lf
 
 # Binary files
 *.png binary
 *.glb binary
+*.icns binary
 *.ico binary
 *.wav binary
 *.jar binary

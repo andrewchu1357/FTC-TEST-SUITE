@@ -5,7 +5,7 @@ import java.awt.Image;
 import java.awt.Taskbar;
 import java.awt.image.BufferedImage;
 
-/** The FTC Test Suite icon, for the windows and the taskbar. */
+/** The FTC Test Suite icon (drawn by packaging/macos/IconGen.java), for the Dock and windows. */
 final class AppIcon {
     static final String NAME = "FTC Test Suite";
     private static BufferedImage image;

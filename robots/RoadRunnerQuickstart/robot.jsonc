@@ -6,7 +6,7 @@
 //  (drive encoders, two or three dead wheels, goBILDA Pinpoint, SparkFun OTOS), and the tuning
 //  OpModes TuningOpModes registers. Tune it here as you would on a robot - follow
 //  rr.brott.dev/docs/v1-0/tuning - then copy the values to your real robot (and see how close
-//  the simulator's robot is to yours with gradlew calibrate).
+//  the simulator's robot is to yours with ./gradlew calibrate).
 //
 //  The robot: a goBILDA Strafer-style chassis with 312 RPM motors, 104 mm GripForce wheels, a
 //  Control Hub IMU, and a goBILDA Pinpoint with two 4-bar pods. Road Runner's own tuning data

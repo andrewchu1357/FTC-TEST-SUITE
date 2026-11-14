@@ -21,7 +21,8 @@ import java.util.concurrent.ExecutorService;
  * during the transition, the bell when TELEOP starts, the factory whistle with 30 seconds
  * left, the buzzer at the end, and a foghorn when a match is stopped early.
  *
- * The tones are made here (not FIRST's recordings); the voice is in resources/sounds.
+ * The tones are made here (not FIRST's recordings). The voice lines are recordings in
+ * resources/sounds; a copy without them plays plain beeps in their place.
  * Call update() regularly with where the match is; the sounds play on a background thread.
  */
 public final class MatchSounds {
@@ -129,10 +130,10 @@ public final class MatchSounds {
         return sounds.computeIfAbsent(cue, c -> level(switch (c) {
             case CHARGE -> charge();
             case END_AUTO -> buzzer(0.9);
-            case PICK_UP -> voice("pickup.wav");
-            case THREE -> voice("three.wav");
-            case TWO -> voice("two.wav");
-            case ONE -> voice("one.wav");
+            case PICK_UP -> voiceOr("pickup.wav", new double[][]{{523.25, 0.2}, {659.25, 0.2}, {783.99, 0.45}});
+            case THREE -> voiceOr("three.wav", new double[][]{{880, 0.3}});
+            case TWO -> voiceOr("two.wav", new double[][]{{880, 0.3}});
+            case ONE -> voiceOr("one.wav", new double[][]{{1174.66, 0.45}});
             case TELEOP_START -> fireBell(1.7);
             case ENDGAME -> factoryWhistle(1.8);
             case END_MATCH -> buzzer(2.0);
@@ -276,7 +277,31 @@ public final class MatchSounds {
         return out;
     }
 
-    /** A recorded voice line from resources/sounds, resampled to RATE and evened out in loudness. */
+    /** A recorded voice line, or these beeps (frequency, seconds) when the recording isn't there. */
+    static float[] voiceOr(String file, double[][] beeps) {
+        float[] v = voice(file);
+        return v.length > 0 ? v : beeps(beeps);
+    }
+
+    /** Plain beeps (frequency, seconds), a short gap after each: a sine with a touch of its octave. */
+    static float[] beeps(double[][] notes) {
+        double gap = 0.06, total = 0;
+        for (double[] n : notes) total += n[1] + gap;
+        float[] out = new float[(int) (total * RATE)];
+        int at = 0;
+        for (double[] n : notes) {
+            int len = (int) (n[1] * RATE);
+            for (int i = 0; i < len; i++) {
+                double t = i / RATE;
+                double env = Math.min(1, t / 0.008) * Math.min(1, (n[1] - t) / 0.05);
+                out[at + i] = (float) (0.4 * env * (Math.sin(2 * Math.PI * n[0] * t) + 0.2 * Math.sin(4 * Math.PI * n[0] * t)));
+            }
+            at += len + (int) (gap * RATE);
+        }
+        return out;
+    }
+
+    /** A recorded voice line from resources/sounds, resampled to RATE and evened out in loudness; empty if there is none. */
     static float[] voice(String file) {
         try (InputStream raw = MatchSounds.class.getResourceAsStream("/sounds/" + file)) {
             if (raw == null) return new float[0];

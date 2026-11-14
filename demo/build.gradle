@@ -1,5 +1,8 @@
 // FTC Test Suite Demo: the simulator in a self-running showcase, for showing it to people.
-// A separate app (its own name, settings and workspace); the real app is unchanged.
+// A separate app (its own name, bundle id, settings and workspace); the real app is unchanged.
+//   ./gradlew :demo:demoApp  ->  viewer/build/dist/FTC Test Suite Demo.app
+
+def osName = System.getProperty('os.name').toLowerCase()
 
 // Built against the simulator's installed jars (viewer/build/install, made by :viewer:installDist,
 // which compiling the demo runs first), not against its sources.
@@ -9,11 +12,123 @@ dependencies {
     compileOnly fileTree(installedLib) { include '*.jar' }
 }
 
+tasks.register('demoApp') {
+    group = 'distribution'
+    description = 'Builds viewer/build/dist/FTC Test Suite Demo.app: the simulator as a self-running demo (macOS).'
+    dependsOn 'jar'
+    onlyIf { osName.contains('mac') }
+    def projectDir = rootProject.projectDir
+    def viewerBuild = project(':viewer').layout.buildDirectory.get().asFile
+    def demoJar = tasks.named('jar').flatMap { it.archiveFile }
+    def temurin = javaToolchains.launcherFor {
+        languageVersion = JavaLanguageVersion.of(21)
+        vendor = JvmVendorSpec.ADOPTIUM
+    }
+    def run = { List<String> cmd ->
+        def p = new ProcessBuilder(cmd).redirectErrorStream(true).start()
+        def out = p.inputStream.text
+        if (p.waitFor() != 0) throw new GradleException("${cmd[0]} failed:\n${out}")
+    }
+    doLast {
+        if (!new File(viewerBuild, 'install/viewer/bin/viewer').exists()) {
+            throw new GradleException('Build the simulator first: ./gradlew :viewer:installDist :sdk-shim:clockAgentJar')
+        }
+        def dist = new File(viewerBuild, 'dist')
+        def app = new File(dist, 'FTC Test Suite Demo.app')
+        project.delete(app)
+        def contents = new File(app, 'Contents')
+        ['MacOS', 'Resources', 'app/lib'].each { new File(contents, it).mkdirs() }
+
+        // Java: the same modules as the real app's package.
+        def jdk = temurin.get().metadata.installationPath.asFile
+        run([new File(jdk, 'bin/jlink').path, '--module-path', new File(jdk, 'jmods').path,
+             '--add-modules', 'java.se,jdk.compiler,jdk.unsupported,jdk.management,jdk.crypto.ec,jdk.zipfs,jdk.httpserver,jdk.localedata,jdk.charsets,jdk.accessibility,jdk.unsupported.desktop,jdk.jfr,jdk.attach',
+             '--strip-debug', '--no-header-files', '--no-man-pages', '--compress', 'zip-6',
+             '--output', new File(contents, 'runtime').path])
+
+        // The simulator's jars in its start script's order, then the demo's.
+        def install = new File(viewerBuild, 'install/viewer')
+        project.copy { from new File(install, 'lib'); into new File(contents, 'app/lib') }
+        project.copy { from demoJar; into new File(contents, 'app/lib'); rename { 'demo.jar' } }
+        project.copy { from new File(projectDir, 'sdk-shim/build/agent/sim-clock-agent.jar'); into new File(contents, 'app') }
+        def cpLine = new File(install, 'bin/viewer').readLines().find { it.startsWith('CLASSPATH=') }
+        new File(contents, 'app/classpath.txt').text = (['demo.jar'] + cpLine.substring('CLASSPATH='.length())
+                .split(':').collect { it.replace('$APP_HOME/lib/', '') }).join('\n') + '\n'
+
+        // A fresh copy of these goes into ~/FTC Sim/Workspaces/Demo at every launch.
+        project.copy {
+            from(projectDir) {
+                include 'config/**', 'TeamCode/src/**', 'TeamCode/build.gradle', 'robots/**', 'README.md', 'docs/**'
+                exclude 'robots/*/build/**', '**/.DS_Store'
+            }
+            into new File(contents, 'Resources/workspace')
+        }
+        // No web pages from the demo: they'd clash with the real app's ports.
+        ['web-view.jsonc'].each { name ->
+            def f = new File(contents, "Resources/workspace/config/${name}")
+            if (f.exists()) f.text = f.text.replaceFirst(/"enabled"\s*:\s*true/, '"enabled": false')
+        }
+        project.copy { from new File(projectDir, 'packaging/macos/AppIcon.icns'); into new File(contents, 'Resources') }
+
+        def version = project.findProperty('appVersion') ?: new Date().format('yyyy.MM.dd')
+        new File(contents, 'Info.plist').text = """<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>CFBundleName</key><string>FTC Test Suite Demo</string>
+  <key>CFBundleDisplayName</key><string>FTC Test Suite Demo</string>
+  <key>CFBundleIdentifier</key><string>org.ftctestbed.testsuite.demo</string>
+  <key>CFBundleExecutable</key><string>FTCTestSuiteDemo</string>
+  <key>CFBundleIconFile</key><string>AppIcon</string>
+  <key>CFBundlePackageType</key><string>APPL</string>
+  <key>CFBundleShortVersionString</key><string>${version}</string>
+  <key>CFBundleVersion</key><string>${version}</string>
+  <key>LSMinimumSystemVersion</key><string>12.0</string>
+  <key>LSArchitecturePriority</key><array><string>arm64</string></array>
+  <key>LSApplicationCategoryType</key><string>public.app-category.developer-tools</string>
+  <key>NSHighResolutionCapable</key><true/>
+</dict>
+</plist>
+"""
+        def script = new File(contents, 'MacOS/FTCTestSuiteDemo')
+        script.text = """#!/bin/bash
+# FTC Test Suite Demo, packaged by ./gradlew :demo:demoApp: a fresh ~/FTC Sim/Workspaces/Demo every launch.
+C="\$(cd "\$(dirname "\$0")/.." && pwd)"
+WS="\$HOME/FTC Sim/Workspaces/Demo"
+LOG="\$HOME/Library/Logs/FTC Test Suite Demo.log"
+alert() { osascript -e "display alert \\"FTC Test Suite Demo\\" message \\"\$1\\" as critical" >/dev/null 2>&1; }
+
+if [ "\$(uname -m)" != "arm64" ]; then alert "This demo needs a Mac with Apple silicon (M1 or later)."; exit 1; fi
+mkdir -p "\$(dirname "\$LOG")"
+# Whatever visitors changed last time is thrown away (compiled code is kept to open faster).
+if [ -d "\$WS" ]; then find "\$WS" -mindepth 1 -maxdepth 1 ! -name build ! -name .sim-build -exec rm -rf {} + ; fi
+mkdir -p "\$WS" && /bin/cp -R "\$C/Resources/workspace/" "\$WS/" || { alert "Can't set up the folder \$WS."; exit 1; }
+cd "\$WS" || exit 1
+
+CP=""
+while IFS= read -r jar; do [ -n "\$jar" ] && CP="\$CP\${CP:+:}\$C/app/lib/\$jar"; done < "\$C/app/classpath.txt"
+
+export SDL_JOYSTICK_HIDAPI_PS4_RUMBLE=1
+export SDL_JOYSTICK_HIDAPI_PS5_RUMBLE=1
+echo "=== \$(date) FTC Test Suite Demo ${version}" >>"\$LOG"
+exec "\$C/runtime/bin/java" -javaagent:"\$C/app/sim-clock-agent.jar" \\
+  -Dapple.awt.application.name='FTC Test Suite Demo' -Xdock:name='FTC Test Suite Demo' -Xdock:icon="\$C/Resources/AppIcon.icns" \\
+  -Djava.util.prefs.PreferencesFactory=org.ftctestbed.viewer.demo.MemoryPreferences \\
+  -Dprism.vsync=true -XX:G1PeriodicGCInterval=30000 -XX:MinHeapFreeRatio=10 -XX:MaxHeapFreeRatio=30 \\
+  -cp "\$CP" org.ftctestbed.viewer.demo.DemoMain >>"\$LOG" 2>&1
+"""
+        script.setExecutable(true, false)
+        run(['codesign', '--force', '--deep', '--sign', '-', app.path])
+        println "Built ${app}"
+    }
+}
+
+
 // ======================================================================================
 // Windows: the same demo as a folder with "FTC Test Suite Demo.exe" and its own Java.
-//   gradlew :demo:demoWindowsApp  ->  demo/build/windows/FTC Test Suite Demo/   (open the .exe in it)
-//   gradlew :demo:demoWindows     ->  viewer/build/dist/FTC-Test-Suite-Demo-Windows.zip
-// It has its own settings (in memory only) and its own working folder,
+//   ./gradlew :demo:demoWindowsApp  ->  demo/build/windows/FTC Test Suite Demo/   (open the .exe in it)
+//   ./gradlew :demo:demoWindows     ->  viewer/build/dist/FTC-Test-Suite-Demo-Windows.zip
+// Like the Mac demo it has its own settings (in memory only) and its own working folder,
 // "FTC Sim\Workspaces\Demo" in the user's folder, emptied and refilled at every launch. Nothing
 // is installed and nothing needs an administrator (see gradle/windows-app.gradle).
 evaluationDependsOn(':viewer') // its Windows settings (windowsStarter, windowsAppJvmArgs) are used below
@@ -28,7 +143,7 @@ registerWindowsApp(
         task: 'demoWindowsApp', zipTask: 'demoWindows', zipName: 'FTC-Test-Suite-Demo-Windows.zip',
         name: 'FTC Test Suite Demo', description: 'FTC Test Suite Demo: the simulator, showing itself off',
         viewer: viewerProject, installName: 'viewer', mainClass: 'org.ftctestbed.viewer.demo.DemoMain',
-        // The demo's classes ahead of the simulator's.
+        // The demo's classes ahead of the simulator's, as in the Mac demo.
         extraJars: ['demo.jar': tasks.named('jar')],
         jvmArgs: viewerProject.ext.windowsAppJvmArgs +
                 ['-Djava.util.prefs.PreferencesFactory=org.ftctestbed.viewer.demo.MemoryPreferences'],

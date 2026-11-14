@@ -1,45 +1,48 @@
 # Building, running and packaging
 
-FTC Test Suite is a Windows app. Nothing has to be installed first, and nothing needs an
-administrator: double-click `Run Simulator.bat` and it finds a JDK 21 on the PC, or downloads one
-into your user profile, then builds and opens the simulator.
+FTC Test Suite runs on **Windows 10 and 11** and on **macOS** (12 or later). The release
+downloads need nothing installed. To build it yourself:
 
-For the commands below you need a **JDK 21** (a JDK, not a JRE: the app compiles team code) in
-`JAVA_HOME`. Gradle comes with the project (`gradlew.bat`) and downloads the libraries on the
-first build; it can also fetch a JDK 21 by itself if it finds none. In PowerShell:
+- **Windows:** double-click `Run Simulator.bat`. It finds a JDK 21 on the PC, or downloads one
+  into your user profile (no installer, no administrator), then builds and opens the simulator.
+- **macOS:** install a JDK 21 (for example `brew install openjdk@21`; the build finds Homebrew's
+  by itself), then `./gradlew run`.
 
-```powershell
-$env:JAVA_HOME = "C:\path\to\jdk-21"
-.\gradlew run
+For the commands below you need a **JDK 21** (a JDK, not a JRE: the app compiles team code).
+Gradle comes with the project (`gradlew`, `gradlew.bat`) and downloads the libraries on the first
+build; it can also fetch a JDK 21 by itself if it finds none. On Windows, write `gradlew` (or
+`.\gradlew` in PowerShell) where this page says `./gradlew`.
+
+```bash
+export JAVA_HOME=/path/to/jdk-21        # Windows PowerShell: $env:JAVA_HOME = "C:\path\to\jdk-21"
+./gradlew run                           # Windows: gradlew run
 ```
-
-(In `cmd`, `set JAVA_HOME=C:\path\to\jdk-21` and `gradlew run`.)
 
 ## Everyday tasks
 
 | Command | What it does |
 |---|---|
-| `gradlew run` | Opens the simulator window. |
-| `gradlew installDist` | Builds the app into `viewer\build\install\viewer\`. |
-| `gradlew test --rerun-tasks` | Runs every test, about 290 of them. Without `--rerun-tasks`, Gradle skips tests whose inputs didn't change and reports them as UP-TO-DATE. |
-| `gradlew :TeamCode:test --tests "*SoakTest"` | Runs one test class. |
-| `gradlew headless --args="…"` | Runs without a window. See below. |
-| `gradlew checkShim` | Checks that the libraries TeamCode uses (FTCLib, Road Runner, Pedro…) only call SDK APIs the shim provides, and lists the ones it doesn't. |
-| `gradlew calibrate --args="logs/calibration/drive-….csv"` | Fits the robot model to logs from the Calibrate OpModes run on the real robot. Writes `config/robot.calibrated.jsonc`. |
-| `gradlew :TeamCode:launcherSweep` | Test-shoots BuzzBot at the HIVE from many distances and prints which flywheel speeds score. |
-| `gradlew :TeamCode:autoTrace --args="'Red Wall' 'BuzzBot Auto Red'"` | Runs an auto and prints the pose, hopper and telemetry every 0.25 s. |
+| `./gradlew run` | Opens the simulator window. |
+| `./gradlew installDist` | Builds the app into `viewer/build/install/viewer/`. |
+| `./gradlew test --rerun-tasks` | Runs every test, about 290 of them. Without `--rerun-tasks`, Gradle skips tests whose inputs didn't change and reports them as UP-TO-DATE. |
+| `./gradlew :TeamCode:test --tests '*SoakTest'` | Runs one test class. |
+| `./gradlew headless --args="…"` | Runs without a window. See below. |
+| `./gradlew checkShim` | Checks that the libraries TeamCode uses (FTCLib, Road Runner, Pedro…) only call SDK APIs the shim provides, and lists the ones it doesn't. |
+| `./gradlew calibrate --args="logs/calibration/drive-….csv"` | Fits the robot model to logs from the Calibrate OpModes run on the real robot. Writes `config/robot.calibrated.jsonc`. |
+| `./gradlew :TeamCode:launcherSweep` | Test-shoots BuzzBot at the HIVE from many distances and prints which flywheel speeds score. |
+| `./gradlew :TeamCode:autoTrace --args="'Red Wall' 'BuzzBot Auto Red'"` | Runs an auto and prints the pose, hopper and telemetry every 0.25 s. |
 | `java tools/BuzzBotCad.java` | Rebuilds BuzzBot's CAD model and `docs/buzzbot-build.md`. |
-| `tools\ftc-sim-mcp.cmd --docs` | Prints the agent tool reference. |
+| `tools/ftc-sim-mcp --docs` | Prints the agent tool reference (`tools\ftc-sim-mcp.cmd --docs` on Windows). |
 
 ## Headless runs
 
-```powershell
-.\gradlew -q headless --args="--match --auto 'BuzzBot Auto Red' --teleop 'BuzzBot TeleOp' --start 'Red Wall'"
+```bash
+./gradlew -q headless --args="--match --auto 'BuzzBot Auto Red' --teleop 'BuzzBot TeleOp' --start 'Red Wall'"
 ```
 
-Plays a full match in a few seconds and prints the score breakdown and the referee notes. Run it
-from PowerShell or `cmd`: Git Bash passes quoted arguments to `cmd` in a way that breaks on a
-folder name with a space.
+Plays a full match in a few seconds and prints the score breakdown and the referee notes. On
+Windows run it from PowerShell (`.\gradlew.bat …`) or `cmd`: Git Bash passes quoted arguments to
+`cmd` in a way that breaks on a folder name with a space.
 
 | Option | Meaning |
 |---|---|
@@ -70,12 +73,16 @@ try (SimHarness sim = SimHarness.load()) {
 ```
 
 Tests and headless runs don't open a window. The window's look is tested by drawing it off
-screen. The suites pass on Windows 11.
+screen. The suites pass on Windows 11 and on macOS. Linux isn't tested by the maintainers.
 
 ## Packages
 
-None of these needs an installer or an administrator, and each carries its own Java, so the PC
-it runs on needs nothing installed. Build them on Windows:
+None of these needs an installer or an administrator, and each carries its own Java, so the
+computer it runs on needs nothing installed. Each is built on the system it is for (the JDK's
+packager only makes launchers for the system it runs on). `-PappVersion=1.0.0` names the version
+(it's the day's date otherwise).
+
+### Windows
 
 | Command | Output |
 |---|---|
@@ -97,15 +104,13 @@ Unzip anywhere and double-click the `.exe`. What the package does:
   can be unzipped over an older one.
 - `ftc-sim.exe` runs headless matches from a terminal on the same Java. The log is
   `%LOCALAPPDATA%\FTC Test Suite\Logs\FTC Test Suite.log`.
-- The window follows Windows: its title bar (with the menus in it), Ctrl shortcuts, light/dark
-  mode, transparency, contrast themes, battery saver, and the 1 ms timer while the simulation
-  runs. The two web pages stay on this computer unless `allowNetworkOnWindows` is set (see
-  [Configuration](configuration.md)), because opening a page to the network makes Windows ask
+- The window follows Windows: its title bar (with the menus in it), Ctrl for ⌘ in every shortcut,
+  light/dark mode, transparency, contrast themes, battery saver, and the 1 ms timer while the
+  simulation runs. The two web pages stay on this computer unless `allowNetworkOnWindows` is set
+  (see [Configuration](configuration.md)), because opening a page to the network makes Windows ask
   for an administrator.
 
-Add `-PappVersion=1.0.0` to name the version (it's the day's date otherwise).
-
-### The one-file .exe
+#### The one-file .exe
 
 `gradlew windowsExe` wraps the zip in one file for a download page: a small launcher
 (`packaging/windows/SingleExe.cs`, compiled with the C# compiler that is part of Windows) with the
@@ -116,15 +121,15 @@ arguments (`--home` works). If Windows refuses that `.exe`, it runs `Start FTC T
 instead. `--unpack-only` unpacks without a window and stops. Its bytes are new with every build,
 so Smart App Control can refuse the launcher itself: publish it next to the zip, not instead of it.
 
-### Smart App Control
+#### Smart App Control
 
 Some Windows 11 PCs have Smart App Control on. It lets a program without a publisher's signature
 run only if Microsoft's cloud service thinks well of that exact file, and there is no "Run anyway".
 These apps are not signed, so it can refuse the `.exe`. Two things help:
 
-1. The `.exe` files are byte for byte the same in every build (the version number stamped into
-   them is fixed: `LAUNCHER_VERSION` in `gradle/windows-app.gradle`; the real version is in the
-   `.cfg` files), so a file keeps the standing it has earned.
+1. The `.exe` files in the zip are byte for byte the same in every build (the version number
+   stamped into them is fixed: `LAUNCHER_VERSION` in `gradle/windows-app.gradle`; the real version
+   is in the `.cfg` files), so a file keeps the standing it has earned.
 2. Every app folder also has **`Start FTC Test Suite.cmd`**, which runs `runtime\bin\javaw.exe`
    directly. Java's own program is signed by its publisher, so Windows runs it.
 
@@ -134,15 +139,54 @@ Never turn Smart App Control off for this (it can't be turned back on without re
 Windows). A code-signing certificate is the real fix. Where an organization allows only approved
 programs to run from folders a user can write to, nothing portable can start.
 
+### macOS
+
+| Command | Output |
+|---|---|
+| `./gradlew macDmg` | `viewer/build/dist/FTC Test Suite.dmg` (about 85 MB, Apple silicon): the whole app with its own Java |
+| `tools/mac-release.sh 1.0.0` | The same DMG as `FTC-Test-Suite-macOS-1.0.0.dmg`, checked, with a `.sha256` file: see [Releases](#releases) |
+| `./gradlew installMacApp` | `~/Applications/FTC Test Suite.app`: a launcher for this project that rebuilds when the code changed |
+| `./gradlew :demo:demoApp` | `viewer/build/dist/FTC Test Suite Demo.app`: the self-running showcase |
+
+- Open the DMG and drag **FTC Test Suite** to Applications. It needs a Mac with Apple silicon
+  (M1 or later) and macOS 12 or later; on an Intel Mac, run it from source (`./gradlew run`).
+- Java 21 is inside the app, linked with jlink from Eclipse Temurin (Gradle downloads that JDK the
+  first time it builds the DMG).
+- The app works in `~/FTC Sim/Workspaces/App`, filled from starter files the first time and never
+  overwritten. The log is `~/Library/Logs/FTC Test Suite.log`.
+- The app is signed ad hoc only (no Apple Developer ID), so the first open is blocked: click
+  **Done**, then System Settings ▸ Privacy & Security ▸ **Open Anyway**. Once is enough. An Apple
+  Developer ID and notarization would remove that step.
+
+### Linux
+
+`./gradlew run` is expected to work (the build picks JavaFX's Linux libraries), but it isn't
+tested by the maintainers and there is no package for it yet.
+
+## Releases
+
+Build each system's files on that system, from the same commit, with the same version:
+
+- **Windows:** `gradlew windowsExe -PappVersion=1.0.0` makes both the zip
+  (`viewer\build\dist\FTC-Test-Suite-Windows.zip`, rename it `FTC-Test-Suite-Windows-1.0.0.zip`)
+  and `FTC-Test-Suite-1.0.0.exe`.
+- **macOS:** `tools/mac-release.sh 1.0.0` makes `FTC-Test-Suite-macOS-1.0.0.dmg` and checks it: it
+  mounts the DMG, checks the app's version, launcher and signature, and plays a headless match with
+  the Java inside the app. It writes the DMG's checksum next to it.
+
+Attach the files (and their checksums) to a GitHub release for the tag `v1.0.0`. Built files
+don't go in the repository.
+
 ## Build outputs
 
-Everything generated goes into `build\` folders, which are safe to delete:
+Everything generated goes into `build/` folders, which are safe to delete:
 
 | Path | What |
 |---|---|
-| `viewer\build\install\viewer\` | The installed app (`lib\` jars and `bin\viewer.bat`) |
-| `sdk-shim\build\agent\sim-clock-agent.jar` | The simulated-time agent, loaded by every run and test task |
-| `build\sim-teamcode\`, `robots\*\build\` | Team code compiled by the window at launch |
-| `viewer\build\dist\`, `viewer\build\windows\` | Release packages |
-| `build\windows\` | What `Run Simulator.bat` runs (argument files, the launcher's classes) |
-| `logs\` | Calibration logs and CSVs from headless runs (not build output; keep them) |
+| `viewer/build/install/viewer/` | The installed app (`lib/` jars and `bin/viewer`) |
+| `sdk-shim/build/agent/sim-clock-agent.jar` | The simulated-time agent, loaded by every run and test task |
+| `build/sim-teamcode/`, `robots/*/build/` | Team code compiled by the window at launch |
+| `viewer/build/dist/` | Release packages (zip, `.exe`, DMG) |
+| `viewer/build/windows/`, `viewer/build/dmg-stage/` | The Windows app folder and the staged Mac app |
+| `build/windows/` | What `Run Simulator.bat` runs (argument files, the launcher's classes) |
+| `logs/` | Calibration logs and CSVs from headless runs (not build output; keep them) |

@@ -1,6 +1,6 @@
 @echo off
-rem FTC Test Suite on Windows, run from this project folder: double-click this file. It
-rem runs the code in this folder, and rebuilds first when the
+rem FTC Test Suite on Windows, run from this project folder: double-click this file. It's the
+rem counterpart of the Mac app: it runs the code in this folder, and rebuilds first when the
 rem simulator's own code changed (team code in TeamCode\ never needs a build).
 rem
 rem Nothing has to be installed first and nothing asks for an administrator:

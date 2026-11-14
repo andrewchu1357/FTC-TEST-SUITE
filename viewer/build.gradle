@@ -44,13 +44,17 @@ test {
 
 application {
     mainClass = 'org.ftctestbed.viewer.ViewerMain'
+    // The name macOS shows in the menu bar and Dock.
+    applicationDefaultJvmArgs = osName.contains('mac')
+            ? ['-Dapple.awt.application.name=FTC Test Suite', '-Xdock:name=FTC Test Suite']
+            : ['-Dapple.awt.application.name=FTC Test Suite']
 }
 
-// How the app runs, shared by `run` and the Windows apps.
+// How the app runs, shared by `run` and the macOS launcher app (installMacApp).
 // SDL only rumbles PS4/PS5 controllers over Bluetooth when asked to (it switches them to their
 // full report mode); over USB they rumble either way.
 def appEnvironment = [SDL_JOYSTICK_HIDAPI_PS4_RUMBLE: '1', SDL_JOYSTICK_HIDAPI_PS5_RUMBLE: '1']
-// The heap is handed back to Windows when the app sits idle (G1 otherwise keeps its high-water
+// The heap is handed back to macOS when the app sits idle (G1 otherwise keeps its high-water
 // mark): about 300 MB less memory while a window is just open.
 def appJvmArgs = ['-Dprism.vsync=true', '-XX:G1PeriodicGCInterval=30000', '-XX:MinHeapFreeRatio=10', '-XX:MaxHeapFreeRatio=30']
 
@@ -63,9 +67,97 @@ tasks.named('run') {
     jvmArgs appJvmArgs
 }
 
+// "FTC Test Suite" in ~/Applications, so it shows up in Launchpad / the Apps launcher and Spotlight.
+// The app runs this project's build (rebuilding first when the code changed), so run this task
+// again only if the project folder moves.
+tasks.register('installMacApp') {
+    group = 'distribution'
+    description = 'Adds the FTC Test Suite app to ~/Applications (macOS).'
+    dependsOn 'installDist', ':sdk-shim:clockAgentJar'
+    onlyIf { osName.contains('mac') }
+    def projectDir = rootProject.projectDir
+    def launcher = tasks.named('run').flatMap { it.javaLauncher }
+    doLast {
+        def q = { String v -> "'" + v.replace("'", "'\\''") + "'" }
+        def app = new File(System.getProperty('user.home'), 'Applications/FTC Test Suite.app')
+        def contents = new File(app, 'Contents')
+        new File(contents, 'MacOS').mkdirs()
+        new File(contents, 'Resources').mkdirs()
+        java.nio.file.Files.copy(new File(projectDir, 'packaging/macos/AppIcon.icns').toPath(),
+                new File(contents, 'Resources/AppIcon.icns').toPath(), java.nio.file.StandardCopyOption.REPLACE_EXISTING)
+        new File(contents, 'Info.plist').text = '''<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>CFBundleName</key><string>FTC Test Suite</string>
+  <key>CFBundleDisplayName</key><string>FTC Test Suite</string>
+  <key>CFBundleIdentifier</key><string>org.ftctestbed.testsuite</string>
+  <key>CFBundleExecutable</key><string>FTCTestSuite</string>
+  <key>CFBundleIconFile</key><string>AppIcon</string>
+  <key>CFBundlePackageType</key><string>APPL</string>
+  <key>CFBundleShortVersionString</key><string>1.0</string>
+  <key>CFBundleVersion</key><string>1</string>
+  <key>LSMinimumSystemVersion</key><string>12.0</string>
+  <key>LSApplicationCategoryType</key><string>public.app-category.developer-tools</string>
+  <key>NSHighResolutionCapable</key><true/>
+</dict>
+</plist>
+'''
+        def jvm = (application.applicationDefaultJvmArgs + appJvmArgs).collect { q(it) }.join(' ')
+        def env = appEnvironment.collect { k, v -> "export ${k}=${q(v)}" }.join('\n')
+        def script = new File(contents, 'MacOS/FTCTestSuite')
+        script.text = """#!/bin/bash
+# FTC Test Suite launcher, written by ./gradlew installMacApp (run it again if the project moves).
+PROJECT=${q(projectDir.absolutePath)}
+JAVA=${q(launcher.get().executablePath.asFile.absolutePath.replaceAll('/Cellar/(openjdk[^/]*)/[^/]+/', '/opt/$1/'))}
+APP="\$(cd "\$(dirname "\$0")/../.." && pwd)"
+LOG="\$HOME/Library/Logs/FTC Test Suite.log"
+alert() { osascript -e "display alert \\"FTC Test Suite\\" message \\"\$1\\" as critical" >/dev/null 2>&1; }
+
+cd "\$PROJECT" 2>/dev/null || { alert "Can't find the project folder \$PROJECT. Run ./gradlew installMacApp in its new place."; exit 1; }
+if [ ! -x "\$JAVA" ]; then
+  JAVA=""
+  for jdk in "\$JAVA_HOME" "\$(/usr/libexec/java_home -v 21 2>/dev/null)" /opt/homebrew/opt/openjdk@21 /usr/local/opt/openjdk@21; do
+    if [ -n "\$jdk" ] && [ -x "\$jdk/bin/java" ]; then JAVA="\$jdk/bin/java"; break; fi
+  done
+fi
+[ -n "\$JAVA" ] || { alert "Java 21 isn't installed. Install it with: brew install openjdk@21"; exit 1; }
+export JAVA_HOME="\$(cd "\$(dirname "\$JAVA")/.." && pwd)"
+
+LIB="\$PROJECT/viewer/build/install/viewer/lib"
+AGENT="\$PROJECT/sdk-shim/build/agent/sim-clock-agent.jar"
+STAMP="\$PROJECT/viewer/build/install/.app-built"
+# Build the latest code first if it changed since the last build.
+if [ ! -f "\$STAMP" ] || [ ! -f "\$AGENT" ] || [ -n "\$(find sdk-shim/src sim-core/src TeamCode/src viewer/src -type f -newer "\$STAMP" -print -quit 2>/dev/null)" ]; then
+  osascript -e 'display notification "Building the latest code…" with title "FTC Test Suite"' >/dev/null 2>&1
+  if ./gradlew -q installDist :sdk-shim:clockAgentJar >>"\$LOG" 2>&1; then
+    touch "\$STAMP"
+  else
+    alert "The code didn't build. The details are in ~/Library/Logs/FTC Test Suite.log"
+    exit 1
+  fi
+fi
+
+# The classpath in the same order as Gradle's own start script.
+HOME_DIR="\$PROJECT/viewer/build/install/viewer"
+CP="\$(sed -n 's/^CLASSPATH=//p' "\$HOME_DIR/bin/viewer")"
+CP="\${CP//\\\$APP_HOME/\$HOME_DIR}"
+[ -n "\$CP" ] || CP="\$LIB/*"
+
+${env}
+exec "\$JAVA" -javaagent:"\$AGENT" ${jvm} -Xdock:icon="\$APP/Contents/Resources/AppIcon.icns" -cp "\$CP" org.ftctestbed.viewer.ViewerMain >>"\$LOG" 2>&1
+"""
+        script.setExecutable(true, false)
+        new File(projectDir, 'viewer/build/install/.app-built').text = ''
+        def lsregister = '/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister'
+        if (new File(lsregister).exists()) new ProcessBuilder(lsregister, '-f', app.absolutePath).inheritIO().start().waitFor()
+        println "Installed ${app}"
+    }
+}
+
 tasks.register('headless', JavaExec) {
     group = 'application'
-    description = 'Runs one OpMode without a window. Example: gradlew headless --args="--opmode \'Encoder Drive Auto\' --log logs/auto.csv"'
+    description = 'Runs one OpMode without a window. Example: ./gradlew headless --args="--opmode \'Encoder Drive Auto\' --log logs/auto.csv"'
     classpath = sourceSets.main.runtimeClasspath
     mainClass = 'org.ftctestbed.viewer.HeadlessMain'
     workingDir = rootProject.projectDir
@@ -85,15 +177,139 @@ tasks.register('checkShim', JavaExec) {
 }
 
 
+// A self-contained FTC Test Suite.app in a DMG, for Macs without this project, Java or Gradle:
+// viewer/build/dist/FTC Test Suite.dmg. It brings its own Java 21 (Eclipse Temurin, made
+// smaller with jlink; Homebrew's JDK can't be bundled because it uses other Homebrew libraries),
+// the simulator, the clock agent, and starter files (config, TeamCode, robots, README) that it
+// copies to ~/FTC Sim/Workspaces/App on first launch. That folder is where the app reads and
+// writes, so team code edited there (or in the Code tab) runs without a build. Starter files never
+// overwrite files that are already there. Builds before 2026-11-13 used ~/FTC Test Suite; the
+// launcher moves that folder into place once. Apple silicon only (JavaFX and Java here are arm64).
+tasks.register('macDmg') {
+    group = 'distribution'
+    description = 'Builds viewer/build/dist/FTC Test Suite.dmg: the whole app, ready to drag to Applications (macOS).'
+    dependsOn 'installDist', ':sdk-shim:clockAgentJar'
+    onlyIf { osName.contains('mac') }
+    def projectDir = rootProject.projectDir
+    def buildDir = layout.buildDirectory.get().asFile
+    def temurin = javaToolchains.launcherFor {
+        languageVersion = JavaLanguageVersion.of(21)
+        vendor = JvmVendorSpec.ADOPTIUM
+    }
+    def run = { List<String> cmd ->
+        def p = new ProcessBuilder(cmd).redirectErrorStream(true).start()
+        def out = p.inputStream.text
+        if (p.waitFor() != 0) throw new GradleException("${cmd[0]} failed:\n${out}")
+    }
+    doLast {
+        def q = { String v -> "'" + v.replace("'", "'\\''") + "'" }
+        def stage = new File(buildDir, 'dmg-stage')
+        def dist = new File(buildDir, 'dist')
+        project.delete(stage)
+        dist.mkdirs()
+        def app = new File(stage, 'FTC Test Suite.app')
+        def contents = new File(app, 'Contents')
+        ['MacOS', 'Resources', 'app/lib'].each { new File(contents, it).mkdirs() }
+
+        // Java: only the modules the simulator needs, plus the compiler for team code.
+        def jdk = temurin.get().metadata.installationPath.asFile
+        run([new File(jdk, 'bin/jlink').path, '--module-path', new File(jdk, 'jmods').path,
+             '--add-modules', 'java.se,jdk.compiler,jdk.unsupported,jdk.management,jdk.crypto.ec,jdk.zipfs,jdk.httpserver,jdk.localedata,jdk.charsets,jdk.accessibility,jdk.unsupported.desktop,jdk.jfr,jdk.attach',
+             '--strip-debug', '--no-header-files', '--no-man-pages', '--compress', 'zip-6',
+             '--output', new File(contents, 'runtime').path])
+
+        // The simulator's jars, in the classpath order of Gradle's start script.
+        def install = new File(buildDir, 'install/viewer')
+        project.copy { from new File(install, 'lib'); into new File(contents, 'app/lib') }
+        project.copy { from new File(projectDir, 'sdk-shim/build/agent/sim-clock-agent.jar'); into new File(contents, 'app') }
+        def cpLine = new File(install, 'bin/viewer').readLines().find { it.startsWith('CLASSPATH=') }
+        new File(contents, 'app/classpath.txt').text = cpLine.substring('CLASSPATH='.length())
+                .split(':').collect { it.replace('$APP_HOME/lib/', '') }.join('\n') + '\n'
+
+        // Starter files for ~/FTC Sim/Workspaces/App.
+        project.copy {
+            from(projectDir) {
+                include 'config/**', 'TeamCode/src/**', 'TeamCode/build.gradle', 'robots/**', 'README.md', 'docs/**'
+                exclude 'robots/*/build/**', '**/.DS_Store'
+            }
+            into new File(contents, 'Resources/workspace')
+        }
+        project.copy { from new File(projectDir, 'packaging/macos/AppIcon.icns'); into new File(contents, 'Resources') }
+        // The license and the notices travel with the app, when the project has them (the public copy does).
+        project.copy { from(projectDir) { include 'LICENSE', 'NOTICE', 'THIRD_PARTY_NOTICES.md' }; into new File(contents, 'Resources') }
+
+        def version = project.findProperty('appVersion') ?: new Date().format('yyyy.MM.dd')
+        new File(contents, 'Info.plist').text = """<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>CFBundleName</key><string>FTC Test Suite</string>
+  <key>CFBundleDisplayName</key><string>FTC Test Suite</string>
+  <key>CFBundleIdentifier</key><string>org.ftctestbed.testsuite.app</string>
+  <key>CFBundleExecutable</key><string>FTCTestSuite</string>
+  <key>CFBundleIconFile</key><string>AppIcon</string>
+  <key>CFBundlePackageType</key><string>APPL</string>
+  <key>CFBundleShortVersionString</key><string>${version}</string>
+  <key>CFBundleVersion</key><string>${version}</string>
+  <key>LSMinimumSystemVersion</key><string>12.0</string>
+  <key>LSArchitecturePriority</key><array><string>arm64</string></array>
+  <key>LSApplicationCategoryType</key><string>public.app-category.developer-tools</string>
+  <key>NSHighResolutionCapable</key><true/>
+</dict>
+</plist>
+"""
+        def jvm = (application.applicationDefaultJvmArgs + appJvmArgs).collect { q(it) }.join(' ')
+        def env = appEnvironment.collect { k, v -> "export ${k}=${q(v)}" }.join('\n')
+        def script = new File(contents, 'MacOS/FTCTestSuite')
+        script.text = """#!/bin/bash
+# FTC Test Suite, packaged by ./gradlew macDmg: runs the bundled Java in ~/FTC Sim/Workspaces/App.
+C="\$(cd "\$(dirname "\$0")/.." && pwd)"
+WS="\$HOME/FTC Sim/Workspaces/App"
+OLD_WS="\$HOME/FTC Test Suite"
+LOG="\$HOME/Library/Logs/FTC Test Suite.log"
+alert() { osascript -e "display alert \\"FTC Test Suite\\" message \\"\$1\\" as critical" >/dev/null 2>&1; }
+
+if [ "\$(uname -m)" != "arm64" ]; then alert "This copy of FTC Test Suite needs a Mac with Apple silicon (M1 or later)."; exit 1; fi
+mkdir -p "\$(dirname "\$LOG")"
+# Builds before 2026-11-13 kept their files in ~/FTC Test Suite: move that folder into place once.
+if [ ! -e "\$WS" ] && [ -d "\$OLD_WS" ] && [ ! -L "\$OLD_WS" ]; then
+  mkdir -p "\$(dirname "\$WS")" && mv "\$OLD_WS" "\$WS" && echo "=== \$(date) moved \$OLD_WS to \$WS" >>"\$LOG"
+fi
+mkdir -p "\$WS" || { alert "Can't create the folder \$WS."; exit 1; }
+# Starter files (first launch, and new ones after an update) without overwriting yours.
+/bin/cp -Rn "\$C/Resources/workspace/" "\$WS/" 2>/dev/null
+cd "\$WS" || { alert "Can't open the folder \$WS."; exit 1; }
+
+CP=""
+while IFS= read -r jar; do [ -n "\$jar" ] && CP="\$CP\${CP:+:}\$C/app/lib/\$jar"; done < "\$C/app/classpath.txt"
+
+${env}
+echo "=== \$(date) FTC Test Suite ${version}" >>"\$LOG"
+exec "\$C/runtime/bin/java" -javaagent:"\$C/app/sim-clock-agent.jar" ${jvm} -Xdock:icon="\$C/Resources/AppIcon.icns" -cp "\$CP" org.ftctestbed.viewer.ViewerMain >>"\$LOG" 2>&1
+"""
+        script.setExecutable(true, false)
+
+        // Ad-hoc signature (no Apple Developer ID here): macOS asks once before the first open.
+        run(['codesign', '--force', '--deep', '--sign', '-', app.path])
+        run(['ln', '-s', '/Applications', new File(stage, 'Applications').path])
+        def dmg = new File(dist, 'FTC Test Suite.dmg')
+        dmg.delete()
+        run(['hdiutil', 'create', '-volname', 'FTC Test Suite', '-srcfolder', stage.path, '-fs', 'HFS+',
+             '-format', 'UDZO', '-imagekey', 'zlib-level=9', '-ov', dmg.path])
+        println "Built ${dmg} (${String.format('%.0f', dmg.length() / 1e6)} MB)"
+    }
+}
+
+
 // ======================================================================================
 // Windows
 //
-//   Run Simulator.bat             runs this project: it finds or
+//   Run Simulator.bat             runs this project (the counterpart of the Mac app): it finds or
 //                                 downloads Java by itself and rebuilds when the code changed
-//   gradlew installWindowsApp   adds "FTC Test Suite" to the Start menu and the Desktop (runs the same)
-//   gradlew windowsApp          viewer/build/windows/FTC Test Suite/: FTC Test Suite.exe with its
+//   ./gradlew installWindowsApp   adds "FTC Test Suite" to the Start menu and the Desktop (runs the same)
+//   ./gradlew windowsApp          viewer/build/windows/FTC Test Suite/: FTC Test Suite.exe with its
 //                                 own Java, for Windows PCs without this project, Java or Gradle
-//   gradlew windowsZip          viewer/build/dist/FTC-Test-Suite-Windows.zip: that folder, to share
+//   ./gradlew windowsZip          viewer/build/dist/FTC-Test-Suite-Windows.zip: that folder, to share
 //
 // None of it installs anything or needs an administrator. gradle/windows-app.gradle explains how
 // the app folder is put together and why.
@@ -105,11 +321,11 @@ apply from: rootProject.file('gradle/windows-app.gradle')
 def windowsJvmArgs = ['-Dsun.awt.noerasebackground=true']
 if (osName.contains('win')) tasks.named('run') { jvmArgs windowsJvmArgs }
 
-// The Java modules the app needs (the compiler too, for team code).
+// The same Java modules as the Mac app's runtime.
 registerWindowsRuntime(['java.se', 'jdk.compiler', 'jdk.unsupported', 'jdk.management', 'jdk.crypto.ec', 'jdk.zipfs', 'jdk.httpserver',
                         'jdk.localedata', 'jdk.charsets', 'jdk.accessibility', 'jdk.unsupported.desktop', 'jdk.jfr', 'jdk.attach'])
 
-// What the packaged apps copy into their working folder: config, TeamCode, robots and the docs
+// What the packaged apps copy into their working folder: the same starter files as the Mac app's
 // (without the team repository's .git folder: thousands of small read-only files nobody runs).
 ext.windowsStarter = {
     include 'config/**', 'TeamCode/src/**', 'TeamCode/build.gradle', 'robots/**', 'README.md', 'docs/**'
@@ -122,7 +338,7 @@ registerWindowsApp(
         name: 'FTC Test Suite', description: 'FTC Test Suite: the simulator for FTC robot code',
         viewer: project, installName: 'viewer', mainClass: application.mainClass.get(),
         jvmArgs: windowsAppJvmArgs,
-        // The working folder: "FTC Sim\Workspaces\App" in the user's own folder.
+        // The same place as on a Mac: "FTC Sim\Workspaces\App" in the user's own folder.
         home: '${user.home}\\FTC Sim\\Workspaces\\App', logName: 'FTC Test Suite.log',
         starter: windowsStarter,
         // ftc-sim.exe: headless runs from a terminal, on the same built-in Java.
@@ -210,7 +426,7 @@ tasks.register('windowsLauncher') {
         new File(dir, 'launcher.args').text = launcher.collect { argLine(it as String) }.join('\n') + '\n'
 
         // The agent server (tools\ftc-sim-mcp.cmd): the same check without a window or a word on
-        // stdout, then the server itself.
+        // stdout, then the server itself, as tools/ftc-sim-mcp starts it on a Mac.
         def check = launcher.findAll { !it.startsWith('-Dtestbed.dev.app=') }
         check.addAll(check.indexOf('-cp'), ['-Djava.awt.headless=true', '-Dtestbed.dev.stdio=true'])
         new File(dir, 'agent-check.args').text = check.collect { argLine(it as String) }.join('\n') + '\n'
@@ -220,8 +436,8 @@ tasks.register('windowsLauncher') {
     }
 }
 
-// "FTC Test Suite" in the Start menu and on the Desktop, for this project on this PC.
-// The shortcuts run "Run Simulator.bat" (minimized: it's gone in a
+// "FTC Test Suite" in the Start menu and on the Desktop, for this project on this PC: the
+// counterpart of installMacApp. The shortcuts run "Run Simulator.bat" (minimized: it's gone in a
 // moment), so they keep working when Java is updated; run this again only if the project folder
 // moves. Both shortcuts are in the user's own profile: no administrator.
 tasks.register('installWindowsApp') {

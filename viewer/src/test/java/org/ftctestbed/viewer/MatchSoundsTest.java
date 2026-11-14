@@ -77,8 +77,20 @@ class MatchSoundsTest {
             assertTrue(peak > 0.2 && peak <= 1.0, c + " peak " + peak);
             assertEquals(a.length * 2, MatchSounds.toPcm(a).length);
         }
-        assertTrue(s.sound(PICK_UP).length / MatchSounds.RATE > 1.5, "the whole sentence");
+        if (MatchSounds.class.getResource("/sounds/pickup.wav") != null) {
+            assertTrue(s.sound(PICK_UP).length / MatchSounds.RATE > 1.5, "the whole sentence");
+        }
         assertTrue(MatchSounds.ONE_AT + s.sound(ONE).length / MatchSounds.RATE < MatchState.TRANSITION_SECONDS + 0.5,
                 "\"one\" is over by the time TELEOP starts");
+    }
+
+    @Test
+    void beepsStandInForAMissingRecording() {
+        assertEquals(0, MatchSounds.voice("no-such-line.wav").length);
+        float[] b = MatchSounds.voiceOr("no-such-line.wav", new double[][]{{880, 0.3}, {1174.66, 0.45}});
+        assertEquals((0.3 + 0.06 + 0.45 + 0.06) * MatchSounds.RATE, b.length, 2);
+        float peak = 0;
+        for (float v : b) peak = Math.max(peak, Math.abs(v));
+        assertTrue(peak > 0.3 && peak <= 0.5, "audible, not clipped: " + peak);
     }
 }

@@ -1,6 +1,6 @@
 # FTC Test Suite agent API: tool reference
 
-Generated from the server (`tools\ftc-sim-mcp.cmd --docs`); the guide is [agent-api.md](agent-api.md). Every tool takes one JSON object of arguments and returns JSON (plus a PNG for pictures). Positions are inches, headings degrees (field center origin, +x toward the blue wall, +y away from the audience, heading 0 along +x, counter-clockwise positive), unless a field says otherwise.
+Generated from the server (`tools/ftc-sim-mcp --docs`); the guide is [agent-api.md](agent-api.md). Every tool takes one JSON object of arguments and returns JSON (plus a PNG for pictures). Positions are inches, headings degrees (field center origin, +x toward the blue wall, +y away from the audience, heading 0 along +x, counter-clockwise positive), unless a field says otherwise.
 
 | Group | Tools |
 |---|---|

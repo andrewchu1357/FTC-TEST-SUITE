@@ -1,6 +1,6 @@
 @echo off
 rem FTC Test Suite agent API on Windows: the MCP server AI agents (Claude Code, Cursor, Codex...)
-rem start to drive the simulator. Its options:
+rem start to drive the simulator. The Windows counterpart of tools/ftc-sim-mcp, with the same options:
 rem
 rem   tools\ftc-sim-mcp.cmd                 MCP over stdio, headless simulations (the usual way)
 rem   tools\ftc-sim-mcp.cmd --live          MCP over stdio, passed on to the open simulator window

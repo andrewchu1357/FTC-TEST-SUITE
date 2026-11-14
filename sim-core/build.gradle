@@ -21,7 +21,7 @@ test {
 
 
 // Fits the simulator to a real robot from the calibration OpModes' logs (see the README).
-// Example: gradlew calibrate --args="logs/calibration/drive-20261013-150000.csv"
+// Example: ./gradlew calibrate --args="logs/calibration/drive-20261013-150000.csv"
 tasks.register('calibrate', JavaExec) {
     group = 'verification'
     description = 'Fits robot.jsonc to logs from the Calibrate Drive / Calibrate Mechanism OpModes.'

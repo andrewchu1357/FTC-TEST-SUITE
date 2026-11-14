@@ -1,7 +1,7 @@
 // The agent API: lets AI agents (Claude Code, Cursor, Codex, any MCP client) drive the simulator
 // to test team code and new mechanisms. Guide: docs/agent-api.md
 //
-// The headless server (tools\ftc-sim-mcp.cmd) always works, without the window. These settings are for
+// The headless server (tools/ftc-sim-mcp) always works, without the window. These settings are for
 // the server inside the app, which also gives agents the window's own simulation ("live"):
 // it listens on this computer only (127.0.0.1), needs a token (File > Copy Agent Connection copies
 // a ready-made command with it), and refuses requests from web pages.
@@ -9,7 +9,7 @@
   "enabled": true,
   "port": 8767,
 
-  // Leave empty to use a random token made for this computer's user (tools\ftc-sim-mcp.cmd --live
+  // Leave empty to use a random token made for this computer's user (tools/ftc-sim-mcp --live
   // finds it by itself). Set one here to share it with another program.
   "token": "",
 

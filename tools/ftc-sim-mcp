@@ -1,0 +1,49 @@
+#!/bin/bash
+# FTC Test Suite agent API: an MCP server AI agents (Claude Code, Cursor, Codex...) start to drive
+# the simulator. Builds the simulator first when its code changed (build output goes to stderr;
+# stdout carries only MCP messages).
+#
+#   tools/ftc-sim-mcp                 MCP over stdio, headless simulations (the usual way)
+#   tools/ftc-sim-mcp --live          MCP over stdio, passed on to the open simulator window
+#   tools/ftc-sim-mcp --http [PORT]   MCP + REST over HTTP on 127.0.0.1 (token: FTC_SIM_TOKEN or --token)
+#   tools/ftc-sim-mcp --docs          print the tool reference
+#
+# Guide: docs/agent-api.md
+set -e
+# On Windows (run from Git Bash) the Windows launcher next to this file does the job: it knows
+# where Windows keeps Java, and fetches it if the computer has none.
+case "$(uname -s)" in
+  MINGW*|MSYS*|CYGWIN*) exec cmd.exe //c "$(cygpath -w "$(dirname "$0")/ftc-sim-mcp.cmd")" "$@" ;;
+esac
+PROJECT="$(cd "$(dirname "$0")/.." && pwd)"
+cd "$PROJECT"
+
+JAVA=""
+for jdk in "$JAVA_HOME" "$(/usr/libexec/java_home -v 21 2>/dev/null)" /opt/homebrew/opt/openjdk@21 /usr/local/opt/openjdk@21 /usr/lib/jvm/java-21-openjdk*; do
+  if [ -n "$jdk" ] && [ -x "$jdk/bin/java" ] && [ -x "$jdk/bin/javac" ]; then JAVA="$jdk/bin/java"; export JAVA_HOME="$jdk"; break; fi
+done
+if [ -z "$JAVA" ]; then
+  echo "ftc-sim-mcp: Java 21 (a JDK) isn't installed. On a Mac: brew install openjdk@21" >&2
+  exit 1
+fi
+
+HOME_DIR="$PROJECT/viewer/build/install/viewer"
+AGENT="$PROJECT/sdk-shim/build/agent/sim-clock-agent.jar"
+STAMP="$PROJECT/viewer/build/install/.agent-built"
+if [ ! -f "$STAMP" ] || [ ! -f "$AGENT" ] || [ -n "$(find sdk-shim/src sim-core/src TeamCode/src viewer/src -type f -newer "$STAMP" -print -quit 2>/dev/null)" ]; then
+  echo "ftc-sim-mcp: building the simulator..." >&2
+  if ./gradlew -q installDist :sdk-shim:clockAgentJar >&2; then
+    touch "$STAMP"
+  else
+    echo "ftc-sim-mcp: the simulator didn't build (see above)" >&2
+    exit 1
+  fi
+fi
+
+# The classpath in the same order as Gradle's start script.
+CP="$(sed -n 's/^CLASSPATH=//p' "$HOME_DIR/bin/viewer")"
+CP="${CP//\$APP_HOME/$HOME_DIR}"
+[ -n "$CP" ] || CP="$HOME_DIR/lib/*"
+
+exec "$JAVA" -javaagent:"$AGENT" -Dapple.awt.UIElement=true -Dtestbed.noGamepads=true -Dtestbed.noSound=true -Xss4m \
+  -cp "$CP" org.ftctestbed.viewer.agent.AgentMain --project "$PROJECT" "$@"

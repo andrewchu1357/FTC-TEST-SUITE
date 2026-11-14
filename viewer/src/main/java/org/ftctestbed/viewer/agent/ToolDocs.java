@@ -12,7 +12,7 @@ final class ToolDocs {
     static String markdown(List<Tool> tools) {
         StringBuilder b = new StringBuilder();
         b.append("# FTC Test Suite agent API: tool reference\n\n")
-                .append("Generated from the server (`tools\\ftc-sim-mcp.cmd --docs`); the guide is [agent-api.md](agent-api.md). ")
+                .append("Generated from the server (`tools/ftc-sim-mcp --docs`); the guide is [agent-api.md](agent-api.md). ")
                 .append("Every tool takes one JSON object of arguments and returns JSON (plus a PNG for pictures). ")
                 .append("Positions are inches, headings degrees (field center origin, +x toward the blue wall, +y away from the audience, ")
                 .append("heading 0 along +x, counter-clockwise positive), unless a field says otherwise.\n\n");

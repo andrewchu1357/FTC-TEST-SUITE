@@ -16,6 +16,11 @@ code and CAD model, and drive with a PS5 controller.
 > estimates (marked in the files): check the Game Manual, and use the simulator to cut down
 > physical testing, not to replace it.
 
+**Download:** ready-to-run builds are on the [Releases](../../releases/latest) page:
+`FTC-Test-Suite-Windows-<version>.zip` (or the one-file `.exe`) for Windows 10 and 11, and
+`FTC-Test-Suite-macOS-<version>.dmg` for Macs with Apple silicon. Java is included and nothing
+is installed. The [Quick start](#quick-start) below runs it from the source code instead.
+
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/viewer-dark.png">
   <img src="docs/viewer.png" alt="BuzzBot playing a BIOBUZZ match: the navigation rail at the left, the command bar over the 3D field, and the Driver Station pane on the right">
@@ -23,7 +28,26 @@ code and CAD model, and drive with a PS5 controller.
 
 ## Quick start
 
-**Double-click `Run Simulator.bat`** in this folder. It needs nothing installed
+You need a JDK 21 or newer to launch Gradle. The build compiles and runs with JDK 21, and
+downloads one automatically if it can't find it.
+
+```bash
+./gradlew run
+```
+
+**On a Mac you can open it like any other app.** Run this once:
+
+```bash
+./gradlew installMacApp
+```
+
+It puts **FTC Test Suite** in your Applications folder (`~/Applications`), so it shows up in
+Launchpad / Apps, Spotlight and Finder, and you can keep it in the Dock. Opening it builds your
+latest code first if anything changed (a notification says so), then starts the simulator. Its
+output goes to `~/Library/Logs/FTC Test Suite.log`. Run the command again if you move the
+project folder. The icon is drawn by `packaging/macos/IconGen.java`.
+
+**On Windows, double-click `Run Simulator.bat`** in this folder. It needs nothing installed
 first and never asks for an administrator: it finds Java 21 on the PC, or downloads it once into
 your own profile, and builds the simulator the first time (a few minutes). After that it opens
 straight away, and builds again by itself when the simulator's own code changed. Its output goes
@@ -47,13 +71,32 @@ signed), **Start FTC Test Suite.cmd** in the same folder starts the app with Jav
 program instead. The app works in `FTC Sim\Workspaces\App` in the user's folder, fills it
 with config, TeamCode, robots and this README the first time, and never overwrites a file that's
 there, so a newer zip can be unzipped over an older one. `Read me.txt` in the zip explains it to
-whoever gets it.
+whoever gets it. In this guide, **⌘ is Ctrl on Windows** (see
+[Menus and shortcuts](#the-window)), and "macOS's settings" means Windows' own.
 
 **Or as one file:** `gradlew windowsExe` wraps that zip in a single
 `viewer\build\dist\FTC-Test-Suite-<version>.exe` (about 86 MB). The first time each version
 starts, it unpacks the app into `%LOCALAPPDATA%\FTC Test Suite\app` (a few seconds, no installer,
 no administrator), then opens it. Smart App Control can refuse a new one-file `.exe` with no way
 round, so offer the zip next to it.
+
+**To give the app to other Macs** (students, a team laptop), build a DMG:
+
+```bash
+./gradlew macDmg
+```
+
+This makes `viewer/build/dist/FTC Test Suite.dmg` (about 85 MB). It needs a Mac with Apple
+silicon (M1 or later) and nothing else: no Java, Gradle or project folder. The app brings its own
+Java 21, built with jlink from Eclipse Temurin (Gradle downloads it the first time). Open the DMG
+and drag **FTC Test Suite** to Applications. On first launch the app copies config, TeamCode,
+robots and this README to `~/FTC Sim/Workspaces/App`. It reads and writes there, and team code
+edited in that folder or in the Code tab runs without a build. A newer DMG adds new starter files
+but never overwrites ones that are already there.
+
+The app isn't signed with an Apple Developer ID, so the first open is blocked. Click **Done**,
+then go to System Settings → Privacy & Security and click **Open Anyway** (or right-click the
+app → **Open**). You only need to do this once.
 
 The window opens on the BIOBUZZ field with **BuzzBot**, the example robot. The pane on the right is your
 Driver Station, and its top card has three tabs:
@@ -65,9 +108,9 @@ Driver Station, and its top card has three tabs:
   **Start match**.
 - **Sandbox** is for just driving. Press **Drive**: it stops whatever is running and starts
   the TeleOp straight away, with no AUTO, no match clock and no time limit. **Reset field**
-  (in the command bar over the field, Ctrl+Shift+R) works while you drive: the robot goes back to its start
+  (in the command bar over the field, ⇧⌘R) works while you drive: the robot goes back to its start
   and the game pieces back in place, and your TeleOp keeps running. Press **Leave sandbox**
-  (or Ctrl+.) to stop.
+  (or ⌘.) to stop.
 
 Every button also has a menu command and most have a keyboard shortcut (see
 [The window](#the-window)).
@@ -78,15 +121,15 @@ Every button also has a menu command and most have a keyboard shortcut (see
 |---|---|
 | AUTO starts | The charge |
 | AUTO ends | The buzzer |
-| Transition | "Drivers, pick up your controllers", then "three, two, one" |
+| Transition | A chime (drivers, pick up your controllers), then three countdown beeps |
 | TELEOP starts | The bell |
 | 30 seconds left | The factory whistle |
 | Match ends | The buzzer |
 | Match stopped early | The foghorn |
 
 They follow the simulated match clock, so they stay in time at any speed. Turn them off with
-**Match sounds** in **Setup** (the gear at the bottom left, or Ctrl+,). The tones are made by the simulator, not FIRST's
-recordings, and the voice is macOS's Samantha.
+**Match sounds** in **Setup** (the gear at the bottom left, or ⌘,). The sounds are made by the simulator, not FIRST's
+recordings.
 
 **3D view:** drag to orbit, right-drag (or Shift-drag) to pan, scroll to zoom. The camera
 menu (the camera button at the left of the command bar, or *View ▸ 3D Camera*) has driver-station views for each alliance (looking at the field from a driver's angle,
@@ -98,7 +141,7 @@ whole view (the field, or the robot and the floor around it), and fits again whe
 resize the window, until you move it yourself. A real driver standing at the wall turns
 their head to take in the field; one picture that wide from there would look like a
 fisheye, so the driver views look from the same angle but farther back. **2D field** in the
-navigation rail (Ctrl+2) switches to the flat field view, which by default is turned to the **driver's view**: your
+navigation rail (⌘2) switches to the flat field view, which by default is turned to the **driver's view**: your
 alliance wall at the bottom. Pick **Top view** from the view menu beside it for the field with
 the audience at the bottom.
 
@@ -155,12 +198,15 @@ bigger, fainter shadow that sits off to one side, so you can judge how high a sh
 
 To practice with a second driver, tick **Partner robot** in **Setup ▸ General** (see [Practicing with a partner](#practicing-with-a-partner)).
 
-To try your own robot, press **Import robot…** in **Setup ▸ General**, or *File ▸ Import Robot…* (Ctrl+O) (see [Bring your own robot](#bring-your-own-robot)).
+To try your own robot, press **Import robot…** in **Setup ▸ General**, or *File ▸ Import Robot…* (⌘O) (see [Bring your own robot](#bring-your-own-robot)).
 
-**Editing code in the app.** **Code** in the navigation rail (Ctrl+3, and Ctrl+E switches between the
-code and the field) shows the source of the code the robot runs. **▶ Save & Run** (Ctrl+R) saves, compiles, reloads the
+**Editing code in the app.** **Code** in the navigation rail (⌘3, and ⌘E switches between the
+code and the field) shows the source of the code the robot runs. **▶ Save & Run** (⌘R) saves, compiles, reloads the
 simulator with the new code and, if ticked, starts the OpMode selected at the top. Compile errors
 are marked on their lines; **Run anyway** reloads without the files that don't compile.
+
+> **macOS:** if no JDK is set up (`JAVA_HOME` unset), `./gradlew` uses Homebrew's
+> `openjdk@21` by itself.
 
 ## The window
 
@@ -182,14 +228,14 @@ snapshot taken as they open, so an open menu costs no more than a plain one.
   simulation keeps running.
 
 **Frame rate** (Setup ▸ Appearance): *Efficient* draws the field 30 times a second instead of
-60, about half the work. *Automatic*, the default, switches to it when the PC runs on
-battery or with battery saver on. Turning the camera with the mouse stays smooth either way.
+60, about half the work. *Automatic*, the default, switches to it when the Mac runs on
+battery or in Low Power Mode. Turning the camera with the mouse stays smooth either way.
 
 **Title bar:** the app's name, the season and robot, and the status at the right: what's
-running, the clock and the score. Drag it to move the window, or double-click it to maximize.
+running, the clock and the score. Drag it to move the window, or double-click it to zoom.
 
-**Navigation rail** (left): **3D field** (Ctrl+1), **2D field** (Ctrl+2) and **Code** (Ctrl+3), with
-**Setup** (Ctrl+,) at the bottom. The ☰ button opens the rail wider with each page's name. Pick a
+**Navigation rail** (left): **3D field** (⌘1), **2D field** (⌘2) and **Code** (⌘3), with
+**Setup** (⌘,) at the bottom. The ☰ button opens the rail wider with each page's name. Pick a
 page, click anywhere else or press Esc to close it again.
 
 **Command bar** (over the page): the page's title, then the camera menu (3D) or view menu
@@ -225,19 +271,24 @@ The app remembers the window's size, the pane's width and whether it's showing.
 
 | Shortcut | Does |
 |---|---|
-| Ctrl+I / Ctrl+Enter / Ctrl+. | Init / Start / Stop (Ctrl+. also aborts a match or leaves the sandbox) |
-| Ctrl+Shift+M | Start match |
-| Ctrl+Shift+D | Drive in the sandbox |
-| Ctrl+Shift+R | Reset field |
-| Ctrl+P / Ctrl+Shift+P | Pause or resume / step |
-| Ctrl+1 / Ctrl+2 / Ctrl+3, Ctrl+E | 3D / 2D / Code; switch between code and field |
-| Ctrl+R | Save & Run the code |
-| Ctrl+Shift+I | Show or hide the Driver Station |
-| Ctrl+, | Setup |
-| Ctrl+Shift+L | Show the pages' names in the navigation rail |
-| Ctrl+O / F5 | Import robot / reload the robot |
+| ⌘I / ⌘↩ / ⌘. | Init / Start / Stop (⌘. also aborts a match or leaves the sandbox) |
+| ⇧⌘M | Start match |
+| ⇧⌘D | Drive in the sandbox |
+| ⇧⌘R | Reset field |
+| ⌘P / ⌥⌘P | Pause or resume / step |
+| ⌘1 / ⌘2 / ⌘3, ⌘E | 3D / 2D / Code; switch between code and field |
+| ⌘R | Save & Run the code |
+| ⌥⌘I | Show or hide the Driver Station |
+| ⌘, | Setup |
+| ⌃⌘L | Show the pages' names in the navigation rail |
+| ⌘O / ⌥⌘R | Import robot / reload the robot |
 
-The menus are in the window's title bar: Alt+F, Alt+R, Alt+V, Alt+S and Alt+H open them.
+**On Windows** the menus are in the window's title bar (Alt+F, Alt+R, Alt+V, Alt+S and Alt+H
+open them), and every ⌘ above is **Ctrl**: Ctrl+I, Ctrl+Enter, Ctrl+., Ctrl+Shift+M and so on.
+The four shortcuts with ⌥ have keys of their own, because Ctrl+Alt is the AltGr key on many
+keyboards: step is **Ctrl+Shift+P**, the Driver Station is **Ctrl+Shift+I**, the pages' names
+are **Ctrl+Shift+L**, and reload the robot is **F5**. The tooltips and menus in the window show
+the Windows keys.
 
 *View ▸ Go To* jumps to any section or Setup page. *Simulation* has the speed, the start
 position and (with a partner) which robot the keyboard drives.
@@ -245,9 +296,9 @@ position and (with a partner) which robot the keyboard drives.
 ### Themes and accessibility
 
 Pick a theme in **Setup ▸ Appearance** or *View ▸ Theme*:
-- **Automatic** (the default) follows Windows: Fluent Light or Fluent Dark (Windows 11's own
-  colors), as the app mode in Settings ▸ Personalization ▸ Colors says, and High Contrast
-  when a contrast theme is on.
+- **Automatic** (the default) follows macOS: Fluent Light or Fluent Dark, Windows 11's own
+  colors. On Windows it follows Windows instead: the app mode in Settings ▸ Personalization ▸
+  Colors, and High Contrast when a contrast theme is on.
 - Fluent Light, Fluent Dark
 - Gruvbox Dark, Gruvbox Light
 - Nord, Dracula
@@ -267,19 +318,18 @@ Text stays readable everywhere:
 - Tests check every theme against these ratios.
 
 More settings:
-- **Transparency effects:** *Automatic* follows Windows' *Transparency effects* setting
-  (Settings ▸ Personalization ▸ Colors). *Off* makes menus, drop-down lists and the navigation
+- **Transparency effects:** *Automatic* follows macOS's *Reduce transparency* setting (System
+  Settings ▸ Accessibility ▸ Display). *Off* makes menus, drop-down lists and the navigation
   pane solid.
-- **Contrast themes:** with one on in Windows (Settings ▸ Accessibility ▸ Contrast themes),
-  *Automatic* uses the High Contrast theme: black surfaces, white outlines and a yellow focus
-  ring and selection markers.
+- **Increase contrast:** if it's on in macOS, controls get outlines. The High Contrast theme
+  goes further: black surfaces, white outlines and a yellow focus ring and selection markers.
 - **Text size:** *Default*, *Large* or *Larger* (also in *View ▸ Text Size*), for the whole app,
   code editor included.
 - **Keyboard:** Tab and Shift-Tab reach every control. Fluent's two-tone focus ring (dark and
   light lines, so it shows on any color) appears once you press Tab, and hides when you click.
   In selector bars (the run tabs, the sections, Setup's tabs), ← / → pick an item. In the
   navigation rail, ↑ / ↓ move between pages and Space opens one.
-- **Screen readers:** every control has a name. Icon-only buttons are named by their tooltips, tabs
+- **VoiceOver:** every control has a name. Icon-only buttons are named by their tooltips, tabs
   and pages report whether they're selected, toggle switches read as on or off, and labels
   are linked to their controls.
 
@@ -442,7 +492,7 @@ code needs the camera's pose set in the Limelight's web interface. If you move t
 
 Plug in a PS4 (DualShock 4), PS5 (DualSense), Xbox or Logitech controller over USB, or pair it
 over Bluetooth: on a **PS4** controller hold **PS + Share** until the light bar double-flashes, on a
-**PS5** controller hold **PS + Create** until the light flashes, then pick it in Windows' Bluetooth
+**PS5** controller hold **PS + Create** until the light flashes, then pick it in the Mac's Bluetooth
 settings (a PS4 controller shows up as "Wireless Controller"). Rumble works over USB and Bluetooth. The first controller becomes `gamepad1` and the second `gamepad2`. To swap them, do
 what you'd do on the Driver Station: **Options + Cross** makes a controller `gamepad1`, **Options + Circle** makes it `gamepad2`.
 With a partner robot the second controller drives robot 2 (see [Practicing with a partner](#practicing-with-a-partner)).
@@ -464,6 +514,7 @@ reports the controller like the Driver Station does. When your OpMode calls `gam
 `rumbleBlips(...)` or `runRumbleEffect(...)`, the controller rumbles. The **Controls** section shows
 both gamepads exactly as your OpMode sees them, including the LED color it set. (The light bar on
 a real controller doesn't change color yet.) Controllers work even when the window isn't in front.
+On macOS the PS button may open the Game Center overlay; you can turn that off in System Settings → Game Controllers.
 
 BuzzBot's TeleOp uses these features: the light bar shows the alliance color, the controller
 buzzes when the shot is lined up, and it gives three blips with 30 s left.
@@ -576,7 +627,7 @@ The page starts when the simulator opens and stops when you close it. The
 Console lists its addresses, for example:
 
 ```
-Watch the simulator in a browser (view only): http://localhost:8766/  or  http://my-pc.tailnet-name.ts.net:8766/  or  http://100.77.243.34:8766/
+Watch the simulator in a browser (view only): http://localhost:8766/  or  http://my-mac.tailnet-name.ts.net:8766/  or  http://100.77.243.34:8766/
 ```
 
 Who can open it is set in `config/web-view.jsonc`:
@@ -587,18 +638,19 @@ Who can open it is set in `config/web-view.jsonc`:
 | `"local"` | Only this computer. |
 | `"network"` | Anyone on the local network too (plain HTTP, so only on a network you trust). |
 
-The page stays on this computer (`"local"`) whatever `access` says, until the
+**On Windows** the page stays on this computer (`"local"`) whatever `access` says, until the
 file also has `"allowNetworkOnWindows": true`. The first time a program opens a page to other
 devices, Windows Defender Firewall shows a prompt that only an administrator can accept, and the
 simulator never asks for an administrator by itself. With that line set, accept Windows' prompt
 once.
 
-Change `port` there if 8766 is taken.
+Change `port` there if 8766 is taken. If macOS asks whether Java may accept incoming network
+connections, allow it, or other devices can't reach the page.
 
 ## Headless runs and automated tests
 
-```bat
-gradlew headless --args="--match --auto 'BuzzBot Auto Red' --teleop 'BuzzBot TeleOp' --snapshot logs/match.png"
+```bash
+./gradlew headless --args="--match --auto 'BuzzBot Auto Red' --teleop 'BuzzBot TeleOp' --snapshot logs/match.png"
 ```
 
 prints the score breakdown and referee notes for a full match, in about 2 s of real time.
@@ -618,8 +670,8 @@ try (SimHarness sim = SimHarness.load()) {
 }
 ```
 
-```bat
-gradlew test
+```bash
+./gradlew test
 ```
 
 `SoakTest` is a glitch hunt: it drives BuzzBot's TeleOp with random sticks and buttons from
@@ -630,24 +682,24 @@ code and robot config the same way.
 
 ## Tuning the shooter
 
-```bat
-gradlew :TeamCode:launcherSweep
+```bash
+./gradlew :TeamCode:launcherSweep
 ```
 
 test-shoots BuzzBot at the HIVE from 30-57 in and three angles, and prints which flywheel
 speeds score. That's how `Launcher.SPEED_TABLE` was made. The **Shots** page of the **Score** section plots
-each shot's height against distance with the CELL opening marked. `gradlew :TeamCode:autoTrace`
+each shot's height against distance with the CELL opening marked. `./gradlew :TeamCode:autoTrace`
 prints an autonomous step by step (true pose, odometry, hopper, telemetry).
 
 ## Editing robot code in the app
 
-Press **Code** (next to **3D | 2D** at the top, or Ctrl+E) to see every source file the robot runs:
+Press **Code** (next to **3D | 2D** at the top, or ⌘E) to see every source file the robot runs:
 the project's `TeamCode`, a robot package's `code/` folder, or the team code it links to (and
 the partner robot's code if it's different).
 
-- Edit with syntax highlighting, line numbers, bracket matching and code folding. Ctrl+F finds,
-  Ctrl+S saves, Ctrl+N makes a new OpMode or class from a template, and **Delete** moves a file to the Recycle Bin.
-- **▶ Save & Run** (Ctrl+R, from anywhere in the window) saves every file and compiles. If there's
+- Edit with syntax highlighting, line numbers, bracket matching and code folding. ⌘F finds,
+  ⌘S saves, ⌘N makes a new OpMode or class from a template, and **Delete** moves a file to the Trash.
+- **▶ Save & Run** (⌘R, from anywhere in the window) saves every file and compiles. If there's
   an error, it stops: the line is marked, and the list under the editor jumps to each error.
   Otherwise the simulator reloads with the new code (about half a second) and, with
   **and start the OpMode** ticked, INITs and STARTs the OpMode selected in the Driver Station,
@@ -664,7 +716,7 @@ code you see is the code that runs, with no Gradle build in between.
 
 ![ExampleBot's CAD model with its lift raised, and the Model page](docs/robot-package.png)
 
-Press **Import robot…** (in **Setup ▸ General**, or *File ▸ Import Robot…*, Ctrl+O):
+Press **Import robot…** (in **Setup ▸ General**, or *File ▸ Import Robot…*, ⌘O):
 
 ![The Import robot dialog](docs/import-robot.png)
 
@@ -680,7 +732,7 @@ Press **Import robot…** (in **Setup ▸ General**, or *File ▸ Import Robot�
 3. **CAD model** (optional). See [CAD models](#cad-models) below.
 
 The robot then opens. Its code is compiled with the JDK's compiler (Java 8 language, like the FTC SDK; newer library methods that Android backports, such as `List.of`, are allowed),
-and the OpMode list shows **only that robot's OpModes**. Edit your code and press **▶ Save & Run** in the **Code** view (or **Reload** in **Setup ▸ General**, F5)
+and the OpMode list shows **only that robot's OpModes**. Edit your code and press **▶ Save & Run** in the **Code** view (or **Reload** in **Setup ▸ General**, ⌥⌘R)
 to recompile; it takes a second or two, and unchanged code isn't recompiled.
 
 **When things don't line up**, the Console says so:
@@ -715,8 +767,8 @@ A robot package is a folder in `robots/`:
 claw, and a CAD model whose wheels, lift stages and claw fingers move. Choose it in the **Robot**
 menu, or run it headless:
 
-```bat
-gradlew headless --args="--robot robots/ExampleBot/robot.jsonc --opmode 'ExampleBot Auto' --start 'Red Wall'"
+```bash
+./gradlew headless --args="--robot robots/ExampleBot/robot.jsonc --opmode 'ExampleBot Auto' --start 'Red Wall'"
 ```
 
 Packages work in tests too: `SimHarness.load(Path.of("robots/MyRobot/robot.jsonc"), Path.of("config/field.jsonc"))`
@@ -724,7 +776,7 @@ compiles the package's code and uses its OpModes.
 
 You can also keep developing in this project's `TeamCode/` module as before. A robot config in
 `config/` uses the TeamCode OpModes. Libraries for TeamCode go in `TeamCode/build.gradle`
-(`.aar`s in the `aar` configuration; FTCLib is set up as an example); run `gradlew checkShim`
+(`.aar`s in the `aar` configuration; FTCLib is set up as an example); run `./gradlew checkShim`
 after adding one.
 
 ### Odometry, Road Runner and Pedro Pathing
@@ -1006,8 +1058,8 @@ reproduces what the real sensors saw. About 30 minutes on a practice field.
 4. **Copy the logs to the computer**: they're in `/sdcard/FIRST/calibration/` on the Control Hub.
    Use Android Studio's Device Explorer, or `adb pull /sdcard/FIRST/calibration logs/`.
 5. **Fit the simulator**:
-   ```bat
-   gradlew calibrate --args="logs/calibration/imu-....csv logs/calibration/turn-....csv logs/calibration/drive-....csv logs/calibration/mechanism-....csv"
+   ```bash
+   ./gradlew calibrate --args="logs/calibration/imu-....csv logs/calibration/turn-....csv logs/calibration/drive-....csv logs/calibration/mechanism-....csv"
    ```
    It prints, for each log, the real robot's numbers next to the simulator's before and after
    (top speeds, turn rate, lowest battery voltage, average mismatch), and the values it found:
@@ -1019,7 +1071,7 @@ reproduces what the real sensors saw. About 30 minutes on a practice field.
    averaged, which cancels drift. It writes everything to
    `config/robot.calibrated.jsonc`; `robot.jsonc` isn't changed.
 6. **Use it**: copy the values into `robot.jsonc`, or start the simulator with
-   `gradlew run --args="--robot config/robot.calibrated.jsonc"`.
+   `./gradlew run --args="--robot config/robot.calibrated.jsonc"`.
 
 After calibrating, the average wheel-speed mismatch should be a few percent or less. A line
 starting with `CHECK` means a value ended at the edge of what's plausible: usually something in
