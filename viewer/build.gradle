@@ -268,3 +268,57 @@ foreach (\$place in \$places) {
         print output
     }
 }
+
+// The app in one file, for a download page: viewer\build\dist\FTC-Test-Suite-<version>.exe, a small
+// launcher with the windowsZip zip inside (packaging/windows/SingleExe.cs explains it). The first
+// start of each version unpacks the app into %LOCALAPPDATA%\FTC Test Suite\app\ (no installer, no
+// administrator); every start runs it from there. It's compiled with the C# compiler that is part
+// of Windows (.NET Framework 4), so the build needs nothing more either. -PappVersion=1.0.0 names
+// the version, as for windowsZip. Its bytes change with every version, so on a PC with Smart App
+// Control on it can be refused until Windows knows it: the zip, with its Start ….cmd, is the way
+// round there (docs: apps-and-folders.md#smart-app-control).
+tasks.register('windowsExe') {
+    group = 'distribution'
+    description = 'Builds viewer\\build\\dist\\FTC-Test-Suite-<version>.exe: the Windows app in one file that unpacks itself into the user\'s profile (no administrator).'
+    dependsOn 'windowsZip', 'winAppIcon'
+    onlyIf { osName.contains('win') }
+    def zipFile = layout.buildDirectory.file('dist/FTC-Test-Suite-Windows.zip')
+    def ico = layout.buildDirectory.file('windows/app.ico')
+    def source = rootProject.file('packaging/windows/SingleExe.cs')
+    def work = layout.buildDirectory.dir('windows/single-exe')
+    def dist = layout.buildDirectory.dir('dist')
+    def appVersion = project.findProperty('appVersion')
+    doLast {
+        def version = (appVersion ?: new Date().format('yyyy.M.d')) as String // as windowsZip's
+        def zip = zipFile.get().asFile
+        // Each build unpacks into a folder of its own, so a rebuilt package of the same version is used too.
+        def hash = java.security.MessageDigest.getInstance('SHA-256').digest(zip.bytes).encodeHex().toString().substring(0, 8)
+        def folder = version.replaceAll(/[^0-9A-Za-z._-]/, '_') + '-' + hash
+        def numbers = (version.findAll(/\d+/).collect { Math.min(it as long, 65534L) } + [0, 0, 0, 0]).take(4).join('.')
+        def dir = work.get().asFile
+        dir.mkdirs()
+        def buildCs = new File(dir, 'Build.cs')
+        buildCs.text = """// Written by gradlew windowsExe.
+using System.Reflection;
+[assembly: AssemblyVersion("${numbers}")]
+[assembly: AssemblyFileVersion("${numbers}")]
+[assembly: AssemblyInformationalVersion("${version}")]
+static class Build
+{
+    public const string Version = "${version}";
+    public const string Folder = "${folder}";
+}
+"""
+        def csc = new File(System.getenv('WINDIR') ?: 'C:\\Windows', 'Microsoft.NET\\Framework64\\v4.0.30319\\csc.exe')
+        if (!csc.exists()) throw new GradleException("The C# compiler that is part of Windows isn't at ${csc}.")
+        def out = new File(dist.get().asFile, "FTC-Test-Suite-${version}.exe")
+        def cmd = [csc.path, '/nologo', '/target:winexe', '/platform:x64', '/optimize+',
+                   "/win32icon:${ico.get().asFile.path}", "/resource:${zip.path},app.zip", "/out:${out.path}",
+                   '/r:System.IO.Compression.dll', '/r:System.IO.Compression.FileSystem.dll',
+                   '/r:System.Windows.Forms.dll', '/r:System.Drawing.dll', buildCs.path, source.path]
+        def p = new ProcessBuilder(cmd.collect { it.toString() }).redirectErrorStream(true).start()
+        def output = p.inputStream.text
+        if (p.waitFor() != 0) throw new GradleException("The C# compiler failed:\n${output}")
+        println "Built ${out} (${String.format('%.0f', out.length() / 1e6)} MB): unpacks into %LOCALAPPDATA%\\FTC Test Suite\\app\\${folder}"
+    }
+}

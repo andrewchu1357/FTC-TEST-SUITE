@@ -49,6 +49,12 @@ with config, TeamCode, robots and this README the first time, and never overwrit
 there, so a newer zip can be unzipped over an older one. `Read me.txt` in the zip explains it to
 whoever gets it.
 
+**Or as one file:** `gradlew windowsExe` wraps that zip in a single
+`viewer\build\dist\FTC-Test-Suite-<version>.exe` (about 86 MB). The first time each version
+starts, it unpacks the app into `%LOCALAPPDATA%\FTC Test Suite\app` (a few seconds, no installer,
+no administrator), then opens it. Smart App Control can refuse a new one-file `.exe` with no way
+round, so offer the zip next to it.
+
 The window opens on the BIOBUZZ field with **BuzzBot**, the example robot. The pane on the right is your
 Driver Station, and its top card has three tabs:
 

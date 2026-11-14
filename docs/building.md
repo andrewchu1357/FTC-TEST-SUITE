@@ -80,7 +80,8 @@ it runs on needs nothing installed. Build them on Windows:
 | Command | Output |
 |---|---|
 | `gradlew windowsApp` | `viewer\build\windows\FTC Test Suite\`, with `FTC Test Suite.exe` and its own Java |
-| `gradlew windowsZip` | `viewer\build\dist\FTC-Test-Suite-Windows.zip` (about 90 MB): that folder, to share |
+| `gradlew windowsZip` | `viewer\build\dist\FTC-Test-Suite-Windows.zip` (about 85 MB): that folder, to share |
+| `gradlew windowsExe` | `viewer\build\dist\FTC-Test-Suite-<version>.exe`: the same app in one file (see below) |
 | `gradlew :demo:demoWindows` | `viewer\build\dist\FTC-Test-Suite-Demo-Windows.zip`: a self-running showcase for events |
 | `gradlew installWindowsApp` | Start menu and Desktop shortcuts to `Run Simulator.bat` for this project |
 
@@ -101,6 +102,19 @@ Unzip anywhere and double-click the `.exe`. What the package does:
   runs. The two web pages stay on this computer unless `allowNetworkOnWindows` is set (see
   [Configuration](configuration.md)), because opening a page to the network makes Windows ask
   for an administrator.
+
+Add `-PappVersion=1.0.0` to name the version (it's the day's date otherwise).
+
+### The one-file .exe
+
+`gradlew windowsExe` wraps the zip in one file for a download page: a small launcher
+(`packaging/windows/SingleExe.cs`, compiled with the C# compiler that is part of Windows) with the
+zip inside. The first start of each version unpacks the app into
+`%LOCALAPPDATA%\FTC Test Suite\app\` (a few seconds, with a progress window) and removes older
+versions there; every start then runs `FTC Test Suite.exe` from that folder, with the launcher's
+arguments (`--home` works). If Windows refuses that `.exe`, it runs `Start FTC Test Suite.cmd`
+instead. `--unpack-only` unpacks without a window and stops. Its bytes are new with every build,
+so Smart App Control can refuse the launcher itself: publish it next to the zip, not instead of it.
 
 ### Smart App Control
 
