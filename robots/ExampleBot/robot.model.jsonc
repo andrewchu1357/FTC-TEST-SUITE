@@ -1,0 +1,22 @@
+// 3D model of the robot for the simulator's 3D view (edit in the window's Model tab).
+// rotations turn the CAD export so the robot's front faces +x and up is +z.
+// Bindings move parts with simulated devices; axes and pivots are in robot coordinates
+// (x forward, y left, z up, inches from the robot's center on the floor).
+{
+  "file": "robot.glb",
+  "units": "auto",
+  "rotations": [ { "axis": "x", "degrees": 90 } ],
+  "autoCenter": true,
+  "offsetIn": [0, 0, 0],
+  "showGenerated": false,
+  "bindings": [
+    { "node": "Wheel FL", "wheel": "frontLeft" },
+    { "node": "Wheel FR", "wheel": "frontRight" },
+    { "node": "Wheel BL", "wheel": "backLeft" },
+    { "node": "Wheel BR", "wheel": "backRight" },
+    { "node": "Lift Stage 1", "mechanism": "lift", "axis": [0, 0, 1], "scale": 0.5 },
+    { "node": "Lift Carriage", "mechanism": "lift", "axis": [0, 0, 1] },
+    { "node": "Finger L", "servo": "claw", "motion": "rotate", "axis": [0, 0, 1], "pivotIn": [-5.2, 1.4, 0], "scale": 0.08, "zero": 0 },
+    { "node": "Finger R", "servo": "claw", "motion": "rotate", "axis": [0, 0, 1], "pivotIn": [-5.2, -1.4, 0], "scale": -0.08, "zero": 0 }
+  ]
+}

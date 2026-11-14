@@ -1,0 +1,51 @@
+// =============================================================================
+//  ExampleBot - an example robot package
+// =============================================================================
+//  A robot package is a folder in robots/ with
+//    robot.jsonc        this file: the simulated robot (devices named as in the code)
+//    code/              the team's Java code (or link to it: "code": { "dirs": [...] })
+//    robot.glb          a CAD export of the robot (GLB/glTF, STL or OBJ)
+//    robot.model.jsonc  how the CAD model sits on the robot and which parts move
+//    libs/              extra .jar libraries the code needs (optional)
+//    parts/             your own parts for the parts catalog (optional)
+//  The simulator compiles code/ when it opens this robot and lists only its OpModes.
+//  Make your own with the "Import robot…" button.
+// =============================================================================
+{
+  "lengthIn": 18,
+  "widthIn": 18,
+  "heightIn": 15,
+  "massLbs": 28,
+
+  "drivetrain": {
+    "type": "mecanum",
+    "wheel": "goBILDA-GripForce-104mm-mecanum",
+    "trackWidthIn": 15.8,
+    "wheelbaseIn": 13.0,
+    "motorType": "goBILDA-5203-312",
+    "motors": {
+      "frontLeft":  { "name": "leftFront", "mountedReversed": true },
+      "frontRight": { "name": "rightFront" },
+      "backLeft":   { "name": "leftBack", "mountedReversed": true },
+      "backRight":  { "name": "rightBack" }
+    }
+  },
+
+  "imu": { "name": "imu", "logo": "UP", "usb": "FORWARD" },
+
+  "motors": [
+    { "name": "lift", "type": "goBILDA-5203-435" }
+  ],
+  "mechanisms": [
+    { "name": "lift", "type": "slide", "motors": ["lift"], "kit": "goBILDA-Viper-2stage-336mm", "massLbs": 2.0 }
+  ],
+  "limitSwitches": [
+    { "name": "liftDown", "mechanism": "lift", "pressedBelow": 0.25 }
+  ],
+  "servos": [
+    { "name": "claw", "type": "goBILDA-2000-25-3" }
+  ],
+  "distanceSensors": [
+    { "name": "frontDistance", "type": "REV-2m-Distance-Sensor", "xIn": 9, "yIn": 0, "headingDeg": 0 }
+  ]
+}

@@ -1,0 +1,173 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>FTC Test Suite Live</title>
+  <meta name="description" content="View-only live view of the FTC Test Suite simulator: field, score, match clock and robot stats.">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%231a1a19'/%3E%3Crect x='8' y='8' width='16' height='16' rx='2' fill='%23F2B33D'/%3E%3Cpath d='M16 12l5 4-5 4z' fill='%23202225'/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="view.css">
+  <script src="view.js" defer></script>
+</head>
+<body>
+  <header class="top">
+    <div class="brand">
+      <span class="logo" aria-hidden="true"></span>
+      <div>
+        <h1>FTC Test Suite <span class="sub">live view</span></h1>
+        <p class="names"><span id="field-name">Connecting…</span><span id="robot-name"></span></p>
+      </div>
+    </div>
+    <div class="chips">
+      <span class="chip" title="This page can't start, stop, pause or change anything.">
+        <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M1 8s2.5-5 7-5 7 5 7 5-2.5 5-7 5-7-5-7-5z" fill="none" stroke="currentColor" stroke-width="1.4"/><circle cx="8" cy="8" r="2.2" fill="currentColor"/></svg>
+        View only
+      </span>
+      <span class="chip hidden" id="sim-chip"></span>
+      <span class="chip status" id="conn" data-status="warning" role="status">
+        <span class="dot" aria-hidden="true"></span><span id="conn-text">Connecting</span>
+      </span>
+    </div>
+  </header>
+
+  <main class="layout">
+    <section class="field-col">
+      <div class="card field-card">
+        <div class="view-toggle" role="group" aria-label="Camera">
+          <button type="button" id="view-field" aria-pressed="true">Whole field</button>
+          <button type="button" id="view-follow" aria-pressed="false">Follow robot</button>
+        </div>
+        <canvas id="field" role="img" aria-label="Top view of the field with the robot and game pieces"></canvas>
+        <p class="field-legend" id="field-legend"></p>
+      </div>
+
+      <div class="card" id="shots-card">
+        <div class="card-head">
+          <h2>Shots <span class="muted">side view, last 6</span></h2>
+          <ul class="legend" aria-label="Shot outcome">
+            <li><span class="key key-good"></span>Scored (solid, ends in a dot)</li>
+            <li><span class="key key-bad"></span>Missed (dashed, ends in an ×)</li>
+            <li><span class="key key-flying"></span>In flight</li>
+          </ul>
+        </div>
+        <canvas id="shots" class="chart chart-shots" role="img" aria-label="Height against distance for recent shots"></canvas>
+        <p class="empty" id="shots-empty">No shots yet.</p>
+      </div>
+
+      <div class="two">
+        <div class="card">
+          <div class="card-head"><h2>Telemetry</h2><span class="muted" id="opmode-name-small"></span></div>
+          <pre class="telemetry" id="telemetry">—</pre>
+        </div>
+        <div class="card">
+          <div class="card-head"><h2>Field notes</h2><span class="muted">fouls and warnings</span></div>
+          <ul class="notes" id="notes"><li class="muted">Nothing yet.</li></ul>
+        </div>
+      </div>
+
+      <div class="card motors-card">
+        <div class="card-head"><h2>Motors</h2><span class="muted">as robot code sees them</span></div>
+        <div class="table-wrap">
+          <table class="data" id="motors">
+            <thead><tr><th scope="col">Motor</th><th scope="col">Hub · port</th><th scope="col">Mode</th><th scope="col" class="num">Power</th><th scope="col" class="num">Velocity (ticks/s)</th><th scope="col" class="num">Current</th><th scope="col" class="num">Encoder</th></tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <aside class="side-col">
+      <div class="card match-card">
+        <div class="match-top">
+          <span class="phase" id="phase">—</span>
+          <span class="muted" id="opmode-state"></span>
+        </div>
+        <div class="clock" id="clock" aria-live="off">–:––</div>
+        <p class="opmode" id="opmode-name">No OpMode running</p>
+        <p class="banner error hidden" id="opmode-error" role="alert"></p>
+        <p class="banner warn hidden" id="opmode-warning"></p>
+      </div>
+
+      <div class="card score-card hidden" id="score-card">
+        <div class="card-head"><h2 id="season-title">Score</h2></div>
+        <div class="scores">
+          <div class="alliance red">
+            <span class="swatch" aria-hidden="true"></span>
+            <span class="a-name">Red</span>
+            <span class="a-score" id="score-red">0</span>
+          </div>
+          <div class="alliance blue">
+            <span class="swatch" aria-hidden="true"></span>
+            <span class="a-name">Blue</span>
+            <span class="a-score" id="score-blue">0</span>
+          </div>
+        </div>
+        <details class="breakdown">
+          <summary>Score breakdown and ranking points</summary>
+          <div class="bd-cols">
+            <div><h3>Red</h3><pre id="bd-red"></pre><ul class="rp" id="rp-red"></ul></div>
+            <div><h3>Blue</h3><pre id="bd-blue"></pre><ul class="rp" id="rp-blue"></ul></div>
+          </div>
+        </details>
+      </div>
+
+      <div class="tiles" id="tiles">
+        <div class="tile"><span class="t-label">Speed</span><span class="t-value" id="t-speed">–</span><span class="t-sub" id="t-speed-sub">in/s</span></div>
+        <div class="tile"><span class="t-label">Turn rate</span><span class="t-value" id="t-turn">–</span><span class="t-sub">°/s</span></div>
+        <div class="tile"><span class="t-label">Battery</span><span class="t-value" id="t-battery">–</span><span class="t-sub" id="t-battery-sub">volts</span></div>
+        <div class="tile"><span class="t-label">Battery current</span><span class="t-value" id="t-current">–</span><span class="t-sub">amps</span></div>
+        <div class="tile"><span class="t-label">Loop time</span><span class="t-value" id="t-loop">–</span><span class="t-sub" id="t-loop-sub">ms</span></div>
+        <div class="tile"><span class="t-label">Position</span><span class="t-value t-small" id="t-pose">–</span><span class="t-sub">x, y in · heading</span></div>
+      </div>
+
+      <div class="card history-card">
+        <div class="card-head"><h2>Last 30 seconds</h2><span class="muted">hover or use ← → to read values</span></div>
+        <div class="chart-block">
+          <div class="chart-head"><span>Speed</span><span class="readout" id="r-speed"></span></div>
+          <canvas class="chart" id="c-speed" tabindex="0" role="img" aria-label="Robot speed over the last 30 seconds"></canvas>
+        </div>
+        <div class="chart-block">
+          <div class="chart-head"><span>Battery voltage</span><span class="readout" id="r-battery"></span></div>
+          <canvas class="chart" id="c-battery" tabindex="0" role="img" aria-label="Battery voltage over the last 30 seconds"></canvas>
+        </div>
+        <div class="chart-block">
+          <div class="chart-head"><span>Battery current</span><span class="readout" id="r-current"></span></div>
+          <canvas class="chart" id="c-current" tabindex="0" role="img" aria-label="Battery current over the last 30 seconds"></canvas>
+        </div>
+        <details class="table-view" id="history-details">
+          <summary>Show as a table</summary>
+          <div class="table-wrap">
+            <table class="data" id="history-table">
+              <thead><tr><th scope="col">Seconds ago</th><th scope="col" class="num">Speed (in/s)</th><th scope="col" class="num">Battery (V)</th><th scope="col" class="num">Current (A)</th><th scope="col" class="num">Loop (ms)</th></tr></thead>
+              <tbody></tbody>
+            </table>
+          </div>
+        </details>
+      </div>
+
+      <div class="card drive-card">
+        <div class="card-head"><h2>Drivetrain</h2><span class="muted" id="drive-summary"></span></div>
+        <p class="banner error hidden" id="tip-warning" role="alert"></p>
+        <ul class="meters" id="wheels"></ul>
+        <p class="muted small" id="drive-note">Load is the share of the robot's weight on each wheel. Accelerating moves weight to the back wheels, braking to the front; a raised lift makes it shift more.</p>
+      </div>
+
+      <div class="card mech-card">
+        <div class="card-head"><h2>Mechanisms</h2></div>
+        <ul class="meters" id="mechanisms"><li class="muted">None.</li></ul>
+        <div id="parts"></div>
+      </div>
+
+      <div class="card servos-card">
+        <div class="card-head"><h2>Servos</h2></div>
+        <div class="table-wrap">
+          <table class="data" id="servos">
+            <thead><tr><th scope="col">Servo</th><th scope="col" class="num">Commanded</th><th scope="col" class="num">Angle</th><th scope="col">PWM</th></tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+    </aside>
+  </main>
+</body>
+</html>

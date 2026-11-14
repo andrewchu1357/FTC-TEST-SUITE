@@ -1,0 +1,22 @@
+// A source-compatible stand-in for the FTC SDK (RobotCore / Hardware / navigation classes).
+// Package and class names match the real SDK so TeamCode compiles against this unmodified.
+// Classes follow the real SDK's design: devices delegate to controller interfaces, and the
+// simulator (sim-core) provides those controllers instead of a Control Hub.
+
+java {
+    withSourcesJar()
+}
+
+// The clock agent: robot code and its libraries (Road Runner, Pedro Pathing, FTCLib...) call
+// System.nanoTime() and friends directly; the agent points those calls at simulated time as
+// their classes load (see org.ftctestbed.shim.ClockAgent). Every run/test task loads it.
+tasks.register('clockAgentJar', Jar) {
+    archiveFileName = 'sim-clock-agent.jar'
+    destinationDirectory = layout.buildDirectory.dir('agent')
+    from(sourceSets.main.output) {
+        include 'org/ftctestbed/shim/ClockAgent*.class', 'org/ftctestbed/shim/ClockRewriter*.class'
+    }
+    manifest {
+        attributes('Premain-Class': 'org.ftctestbed.shim.ClockAgent', 'Agent-Class': 'org.ftctestbed.shim.ClockAgent')
+    }
+}

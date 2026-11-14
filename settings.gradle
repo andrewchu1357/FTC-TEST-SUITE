@@ -1,0 +1,12 @@
+plugins {
+    // Lets Gradle download a JDK 21 automatically on machines that don't have one.
+    id 'org.gradle.toolchains.foojay-resolver-convention' version '1.0.0'
+}
+
+rootProject.name = 'ftc-testbed'
+
+include 'sdk-shim'   // Stand-in for the FTC SDK (com.qualcomm.*, org.firstinspires.*)
+include 'sim-core'   // Physics, simulated hardware, OpMode runner (headless-capable)
+include 'viewer'     // Swing desktop window
+include 'TeamCode'   // Your robot code - compiled against sdk-shim exactly like the real SDK
+include 'demo'       // FTC Test Suite Demo: a self-running showcase app (gradlew :demo:demoWindows)

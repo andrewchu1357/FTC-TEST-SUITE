@@ -1,0 +1,29 @@
+// BuzzBot's 3D model, generated with config/robot.glb by tools/BuzzBotCad.java from goBILDA and
+// REV part drawings (see docs/buzzbot-build.md). Re-run the tool after changing it; edits made
+// in the window's Model tab are saved here and kept until the tool runs again.
+// The model is drawn in robot coordinates; the rotation turns glTF's y-up frame to z-up.
+{
+  "file": "robot.glb",
+  "units": "m",
+  "rotations": [ { "axis": "x", "degrees": 90 } ],
+  "autoCenter": false,
+  "offsetIn": [0, 0, 0],
+  "showGenerated": false,
+  "bindings": [
+    { "node": "Wheel FL", "wheel": "frontLeft" },
+    { "node": "Wheel FR", "wheel": "frontRight" },
+    { "node": "Wheel BL", "wheel": "backLeft" },
+    { "node": "Wheel BR", "wheel": "backRight" },
+    { "node": "Intake roller", "motor": "intake", "motion": "rotate", "axis": [0, 1, 0] },
+    { "node": "Intake upper roller", "motor": "intake", "motion": "rotate", "axis": [0, 1, 0] },
+    { "node": "Flywheel", "mechanism": "flywheel", "motion": "rotate", "axis": [0, 1, 0] },
+    { "node": "Kicker arm", "servo": "kicker", "motion": "rotate", "axis": [0, 1, 0], "pivotIn": [-0.787, 0, 10.315], "scale": 0.222, "zero": -90 },
+    { "node": "Transfer wheels", "servo": "transfer", "motion": "rotate", "axis": [0, 1, 0], "pivotIn": [-0.551, 0, 9.291] },
+    { "node": "Lift stage 1", "mechanism": "lift", "motion": "translate", "axis": [-0.1043, 0, 1], "scale": 0.2514 },
+    { "node": "Lift stage 2", "mechanism": "lift", "motion": "translate", "axis": [-0.1043, 0, 1], "scale": 0.5027 },
+    { "node": "Lift stage 3", "mechanism": "lift", "motion": "translate", "axis": [-0.1043, 0, 1], "scale": 0.7541 },
+    { "node": "Lift carriage", "mechanism": "lift", "motion": "translate", "axis": [-0.1043, 0, 1], "scale": 1.0054 },
+    { "node": "Claw finger L", "servo": "claw", "motion": "rotate", "axis": [0, 0, 1], "pivotIn": [-8.071, 1.957, 1.811], "scale": -0.139, "zero": -90 },
+    { "node": "Claw finger R", "servo": "claw", "motion": "rotate", "axis": [0, 0, 1], "pivotIn": [-8.071, -1.957, 1.811], "scale": 0.139, "zero": -90 }
+  ]
+}

@@ -1,0 +1,58 @@
+// =============================================================================
+//  BIOBUZZ presented by RTX - FTC 2026-27 (Competition Manual TU04)
+// =============================================================================
+//  The field elements (HIVE structure, FLOWERS, LOADING ZONES, GARDENS), staging and
+//  scoring are built into the "biobuzz" season module, measured from FIRST's official field
+//  CAD (am-5850 BIOBUZZ, v26-27.2). This file sets where robots start and the physical values
+//  neither the manual nor the CAD gives.
+//
+//  Field coordinates: origin at the field center, +x toward the BLUE alliance wall,
+//  +y away from the audience. Heading 0 points along +x, counter-clockwise positive.
+//  The field is symmetric under a 180 degree rotation: (x, y) -> (-x, -y).
+// =============================================================================
+{
+  "name": "BIOBUZZ (FTC 2026-27)",
+  "season": "biobuzz",
+  // Between the walls' inside faces, as built: 6 tiles of about 23.5 in, not the nominal 144 in.
+  "sizeIn": 141.17,
+  "tileIn": 23.53,
+
+  // Starting spots (G304: fully on your alliance's half, touching the wall, away from FLOWERS),
+  // for an 18 in robot: its back against the wall, 70.585 - 9 = 61.585 in from the center.
+  "startPositions": [
+    { "name": "Red Wall",      "alliance": "red",  "xIn": -61.585, "yIn": 0,       "headingDeg": 0 },
+    { "name": "Red Audience",  "alliance": "red",  "xIn": -38,     "yIn": -61.585, "headingDeg": 90 },
+    { "name": "Blue Wall",     "alliance": "blue", "xIn": 61.585,  "yIn": 0,       "headingDeg": 180 },
+    { "name": "Blue Audience", "alliance": "blue", "xIn": 38,      "yIn": 61.585,  "headingDeg": -90 }
+  ],
+
+  "biobuzz": {
+    // AndyMark lists POLLEN at 0.055 lb and NECTAR at 0.091 lb (am-5851 / am-5852). They are
+    // Gopher ResisDent polyethylene balls: smooth, hollow, not perfectly round (manual 9.8).
+    "pollenMassG": 25,
+    "nectarMassG": 41,
+    // [ESTIMATE] The HIVE is simulated as a rigid body on its pivot: the weight of the pieces in
+    // the upward CELL turns it against the structure's own weight and the bearings' friction.
+    // tipThresholdG: grams of POLLEN resting against the back of the upward CELL that just tip
+    // it. Where pieces sit matters (the second row is further out, so it pulls harder). With
+    // this value the 3 starting NECTAR plus 3 POLLEN tip it, and each later tip needs 8 POLLEN.
+    // Count how many POLLEN tip a real HIVE and update.
+    "tipThresholdG": 190,
+    // [ESTIMATE] The HIVE's moment of inertia about its pivot (kg m^2): how fast it swings over.
+    // With 0.3 a HIVE tipped by one POLLEN too many takes about 2.1 s from starting to move
+    // to resting on its other side. Or film a real tip and set "tipSeconds" (that same time)
+    // instead: the inertia is then worked out from it.
+    "hiveInertiaKgM2": 0.3,
+    // [ESTIMATE] No two balls are quite the same (manual 9.8: not perfectly round). Each ball gets
+    // its own mass, size, bounce and rolling resistance: standard deviations in percent, each
+    // ball within two of them. seed: change it for a different set of balls.
+    "ballVariation": { "massPct": 3, "diameterPct": 1, "bouncePct": 8, "rollingPct": 25, "seed": 1 },
+    "humanPlayer": "auto",      // "auto" enters NECTAR whenever the rules allow; "manual" = button only
+    "dragCoefficient": 0.47,    // air drag of a smooth ball at these speeds (Reynolds number ~3e4)
+    // [ESTIMATE] Magnus lift of a spinning ball (the lift coefficient at high spin) and how fast
+    // the spin dies away. Backspin from a hooded launcher floats shots a little.
+    "magnusLift": 0.25,
+    "spinDecaySeconds": 2.0,
+    "rollingFriction": 0.08     // how quickly balls stop rolling on the foam tiles
+  }
+}

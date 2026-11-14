@@ -1,0 +1,97 @@
+// Your robot code. Put the contents of your real TeamCode/src/main/java here, unchanged.
+// It compiles against sdk-shim exactly as it would against the FTC SDK (Java 8, same packages).
+
+configurations {
+    // Android libraries (.aar). Their classes.jar is extracted so the desktop JVM can use them.
+    aar { transitive = false }
+}
+
+dependencies {
+    implementation project(':sdk-shim')
+
+    // Road Runner 1.0 - same coordinates as the road-runner-quickstart. Its FTC Dashboard and
+    // FTC SDK dependencies are left out: the shim provides both.
+    aar 'com.acmerobotics.roadrunner:ftc:0.1.25@aar'
+    implementation 'com.acmerobotics.roadrunner:core:1.0.1'
+    implementation('com.acmerobotics.roadrunner:actions:1.0.1') { exclude group: 'com.acmerobotics.dashboard' }
+    runtimeOnly 'com.fasterxml.jackson.core:jackson-databind:2.12.7'   // RR tuning files
+
+    // Pedro Pathing 3 - the current Pedro-Pathing/Quickstart's coordinates (revhub is the FTC
+    // side: drivetrains and localizers on REV hardware; core is the follower and paths).
+    aar 'com.pedropathing:revhub:3.0.1@aar'
+    implementation 'com.pedropathing:core:3.0.1'
+    // Pedro's tuning procedures (the Quickstart's pedro/procedures): a web page on the robot walks
+    // you through them. Sloth and its web server come from the Dairy repository.
+    aar 'com.pedropathing:tuning:1.0.1@aar'
+    runtimeOnly 'com.aventrix.jnanoid:jnanoid:2.0.0'
+    runtimeOnly 'org.nanohttpd:nanohttpd-websocket:2.3.1'
+    // Ivy, Pedro Pathing's command library: Scheduler, Command, sequential/parallel groups, waitMs,
+    // and PedroCommands.follow (ivy:pedro is the Android library, ivy:core plain Java).
+    aar 'com.pedropathing.ivy:pedro:1.1.1@aar'
+    implementation 'com.pedropathing.ivy:core:1.1.1'
+
+    // FTCLib - same coordinates as in an FTC Android Studio project.
+    aar 'org.ftclib.ftclib:core:2.1.1@aar'
+    implementation 'org.ejml:ejml-simple:0.39'                       // FTCLib dependency
+    implementation 'org.jetbrains.kotlin:kotlin-stdlib-jdk8:1.9.0'   // FTCLib and Road Runner
+    implementation 'org.jetbrains.kotlin:kotlin-stdlib:2.3.21'      // Pedro Pathing 3 (newer Kotlin runs the older code)
+
+    implementation fileTree(dir: layout.buildDirectory.dir('aar-classes'), include: '*.jar').builtBy('extractAars')
+}
+
+tasks.register('extractAars') {
+    def aarFiles = configurations.aar
+    def outDir = layout.buildDirectory.dir('aar-classes')
+    inputs.files(aarFiles)
+    outputs.dir(outDir)
+    doLast {
+        def out = outDir.get().asFile
+        out.deleteDir()
+        out.mkdirs()
+        aarFiles.files.each { aar ->
+            def zip = new java.util.zip.ZipFile(aar)
+            try {
+                def entry = zip.getEntry('classes.jar')
+                if (entry == null) throw new GradleException("${aar.name} has no classes.jar")
+                new File(out, aar.name.replaceAll(/\.aar$/, '.jar')).withOutputStream { os -> os << zip.getInputStream(entry) }
+            } finally {
+                zip.close()
+            }
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------------------
+// Automated tests: run your OpModes in the simulator with JUnit (gradlew test).
+// The simulator is a test-only dependency - nothing here ends up in your robot code.
+dependencies {
+    testImplementation project(':sim-core')
+    testImplementation platform('org.junit:junit-bom:5.11.4')
+    testImplementation 'org.junit.jupiter:junit-jupiter'
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+}
+
+test {
+    useJUnitPlatform()
+    workingDir = rootProject.projectDir
+    testLogging {
+        events 'passed', 'failed'
+        exceptionFormat = 'full'
+    }
+}
+
+tasks.register('launcherSweep', JavaExec) {
+    group = 'verification'
+    description = 'Test-shoots BuzzBot at the HIVE from many distances and prints which flywheel speeds score.'
+    classpath = sourceSets.test.runtimeClasspath
+    mainClass = 'org.firstinspires.ftc.teamcode.buzzbot.LauncherSweep'
+    workingDir = rootProject.projectDir
+}
+
+tasks.register('autoTrace', JavaExec) {
+    group = 'verification'
+    description = 'Runs an autonomous and prints pose, hopper and telemetry every 0.25 s. Args: "Start position" "OpMode name"'
+    classpath = sourceSets.test.runtimeClasspath
+    mainClass = 'org.firstinspires.ftc.teamcode.buzzbot.AutoTrace'
+    workingDir = rootProject.projectDir
+}

@@ -1,0 +1,12 @@
+FTC Test Suite
+Copyright 2026 The FTC Test Suite Authors
+
+Licensed under the Apache License, Version 2.0 (see LICENSE).
+
+FTC Test Suite is an independent project. It is not affiliated with, endorsed by or sponsored
+by FIRST. "FIRST" and "FTC" are trademarks of their respective owners; they are used here only
+to say which robotics competition the simulator is for.
+
+This product includes software developed by others, under their own licenses. The libraries it
+is built with, the FIRST sample code used by its tests and the quickstart projects it ships
+as examples are listed in THIRD_PARTY_NOTICES.md.

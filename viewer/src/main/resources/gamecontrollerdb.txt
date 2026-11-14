@@ -1,0 +1,4 @@
+# Extra SDL controller mappings, one per line (format: https://github.com/mdqinc/SDL_GameControllerDB).
+# SDL's built-in mappings already cover PS5, PS4, Xbox and most common controllers.
+# The line below is a placeholder that matches no real device; Jamepad needs at least one mapping here.
+03000000f7f7000001f0000000000000,FTC Testbed placeholder,a:b0,b:b1,x:b2,y:b3,leftx:a0,lefty:a1,

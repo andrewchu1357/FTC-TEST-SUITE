@@ -1,0 +1,66 @@
+// FTC Test Suite Demo: the simulator in a self-running showcase, for showing it to people.
+// A separate app (its own name, settings and workspace); the real app is unchanged.
+
+// Built against the simulator's installed jars (viewer/build/install, made by :viewer:installDist,
+// which compiling the demo runs first), not against its sources.
+def installedLib = project(':viewer').layout.buildDirectory.dir('install/viewer/lib')
+
+dependencies {
+    compileOnly fileTree(installedLib) { include '*.jar' }
+}
+
+// ======================================================================================
+// Windows: the same demo as a folder with "FTC Test Suite Demo.exe" and its own Java.
+//   gradlew :demo:demoWindowsApp  ->  demo/build/windows/FTC Test Suite Demo/   (open the .exe in it)
+//   gradlew :demo:demoWindows     ->  viewer/build/dist/FTC-Test-Suite-Demo-Windows.zip
+// It has its own settings (in memory only) and its own working folder,
+// "FTC Sim\Workspaces\Demo" in the user's folder, emptied and refilled at every launch. Nothing
+// is installed and nothing needs an administrator (see gradle/windows-app.gradle).
+evaluationDependsOn(':viewer') // its Windows settings (windowsStarter, windowsAppJvmArgs) are used below
+apply from: rootProject.file('gradle/windows-app.gradle')
+
+// The demo compiles against the simulator's installed jars (viewer/build/install), so they have to
+// exist first: a clean checkout has none, and `gradlew test` would fail to compile the demo.
+tasks.named('compileJava') { dependsOn ':viewer:installDist' }
+
+def viewerProject = project(':viewer')
+registerWindowsApp(
+        task: 'demoWindowsApp', zipTask: 'demoWindows', zipName: 'FTC-Test-Suite-Demo-Windows.zip',
+        name: 'FTC Test Suite Demo', description: 'FTC Test Suite Demo: the simulator, showing itself off',
+        viewer: viewerProject, installName: 'viewer', mainClass: 'org.ftctestbed.viewer.demo.DemoMain',
+        // The demo's classes ahead of the simulator's.
+        extraJars: ['demo.jar': tasks.named('jar')],
+        jvmArgs: viewerProject.ext.windowsAppJvmArgs +
+                ['-Djava.util.prefs.PreferencesFactory=org.ftctestbed.viewer.demo.MemoryPreferences'],
+        home: '${user.home}\\FTC Sim\\Workspaces\\Demo', resetHome: true, logName: 'FTC Test Suite Demo.log',
+        starter: viewerProject.ext.windowsStarter,
+        // No web pages from the demo: they'd clash with the real app's ports.
+        starterEdits: { File starter ->
+            ['web-view.jsonc'].each { name ->
+                def f = new File(starter, "config/${name}")
+                if (f.exists()) f.text = f.text.replaceFirst(/"enabled"\s*:\s*true/, '"enabled": false')
+            }
+        },
+        readme: '''FTC Test Suite Demo for Windows
+===============================
+
+Double-click "FTC Test Suite Demo.exe": the simulator plays BuzzBot's matches by itself.
+Touch a controller or a key to drive; after two minutes idle the show starts again.
+
+Nothing needs installing and nothing asks for an administrator. Java is in the
+"runtime" folder next to the .exe, so keep this folder together, and unzip the whole
+download first (don't run it from inside the zip).
+
+The first time, Windows may say "Windows protected your PC" (the app isn't signed).
+Choose "More info", then "Run anyway".
+
+The demo works in "FTC Sim\\Workspaces\\Demo" in your user folder and empties that
+folder every time it starts: whatever visitors changed is gone at the next launch.
+Its log is %LOCALAPPDATA%\\FTC Test Suite\\Logs\\FTC Test Suite Demo.log
+
+The demo needs a graphics card Java can draw 3D with (any PC from the last ten years with
+its graphics driver installed). Over Remote Desktop or in a virtual machine the 3D view says
+it isn't available.
+
+To remove it, delete this folder.
+''')

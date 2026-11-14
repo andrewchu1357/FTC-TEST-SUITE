@@ -1,0 +1,161 @@
+// =============================================================================
+//  BuzzBot - example BIOBUZZ robot
+// =============================================================================
+//  18 x 18 in mecanum robot:
+//    - full-width front roller intake (POLLEN off the tiles and out of FLOWER bottoms)
+//    - 4-ball hopper with a CR-servo transfer and a color sensor
+//    - flywheel launcher (two 6000 rpm motors on one shaft) fed by a kicker servo
+//    - angled rear lift with a NECTAR claw that reaches over a FLOWER's top (21.4 in)
+//    - two dead wheels plugged into drive motor encoder ports, plus the hub IMU
+//
+//  Built from real parts: a goBILDA Strafer chassis, REV hubs and battery, goBILDA motors,
+//  servos, Viper-Slide and wheels. docs/buzzbot-build.md has the parts list with each part's
+//  weight and where it came from, and how the mass, center of gravity and inertia below were
+//  worked out. tools/BuzzBotCad.java builds the 3D model (robot.glb) from the same parts.
+//
+//  Device names here are the names BuzzBot's code uses with hardwareMap.get(...).
+//  Units go on the key ("widthIn", "massLbs", ...). Robot frame: x forward, y left.
+//  "type" / "wheel" / "kit" name parts from the parts catalog (window: Parts tab;
+//  built-in list in sim-core/src/main/resources/parts/catalog.jsonc, your own parts in
+//  config/parts/*.jsonc). Settings written here override the part's values.
+// =============================================================================
+{
+  // 440 mm over the wheels plus the intake roller at the front edge; 451.7 mm over the wheels;
+  // the top of the launcher plates.
+  "lengthIn": 18,
+  "widthIn": 17.78,
+  "heightIn": 16.6,
+  // Every part added up (docs/buzzbot-build.md). Weigh yours: wiring and screws vary.
+  "massLbs": 25.4,
+  // Center of gravity with everything retracted, from where each part sits. The battery lies
+  // low between the crossbars. A rising lift raises it further.
+  "cgHeightIn": 5.05,
+  // How hard it is to spin, from where each part sits (a uniform 18 in box would be 0.396).
+  "yawInertiaKgM2": 0.374,
+
+  // REV Slim Battery (REV-31-1302): 10 NiMH cells, 3000 mAh, 20 A fuse. Internal resistance
+  // is battery + wiring: how much the voltage sags under load.
+  "battery": { "volts": 12.8, "internalResistanceOhms": 0.1, "capacityMah": 3000 },
+  // Time per hardware call (ms); sets the OpMode loop time, as on a real Control Hub.
+  "hubTiming": { "controlHubCommandMs": 2, "expansionHubCommandMs": 3, "i2cMs": 3 },
+
+  // goBILDA Strafer chassis kit v7 (3209-0001-0007): motors inside the side rails drive the
+  // wheels through steel miter gears. From goBILDA's drawing: 336 mm wheelbase, 413.7 mm track.
+  "drivetrain": {
+    "type": "mecanum",
+    "wheel": "goBILDA-GripForce-104mm-mecanum",
+    "trackWidthIn": 16.29,
+    "wheelbaseIn": 13.23,
+    "wheelFriction": 0.9,
+    "rollerFriction": 0.2,
+    "gearboxFriction": 0.06,
+    "rollingResistance": 0.02,   // drag of the foam tiles, as a share of each wheel's load
+    "motors": {
+      "frontLeft":  { "name": "leftFront",  "type": "goBILDA-5203-312", "mountedReversed": true },
+      "frontRight": { "name": "rightFront", "type": "goBILDA-5203-312" },
+      "backLeft":   { "name": "leftBack",   "type": "goBILDA-5203-312", "mountedReversed": true },
+      "backRight":  { "name": "rightBack",  "type": "goBILDA-5203-312" }
+    }
+  },
+
+  // [CALIBRATE] driftDegPerMin / noiseDeg (Calibrate IMU) and scaleError (Calibrate Turn: the
+  // fraction every turn over-reads) - see README, Calibration. 0 for all three: a perfect IMU.
+  // chip: "BHI260AP" (Control Hubs from Sept 2022) or "BNO055". movingDriftDegPerMin: extra drift
+  // while turning (Bosch: 0.6 typical).
+  "imu": { "name": "imu", "logo": "UP", "usb": "FORWARD", "chip": "BHI260AP", "driftDegPerMin": 0.03, "noiseDeg": 0.03, "scaleError": 0.003 },
+
+  "motors": [
+    { "name": "intake",       "type": "goBILDA-5203-1150" },
+    { "name": "shooterLeft",  "type": "goBILDA-5203-6000" },
+    { "name": "shooterRight", "type": "goBILDA-5203-6000", "mountedReversed": true },
+    { "name": "lift",         "type": "goBILDA-5203-435" }
+  ],
+
+  "mechanisms": [
+    // Both shooter motors drive one shaft with two 96 mm Gecko wheels and an 82 mm steel
+    // flywheel (goBILDA: 1651 g·cm²); inertia includes the wheels, shaft, hubs and rotors.
+    { "name": "flywheel", "type": "free", "motors": ["shooterLeft", "shooterRight"],
+      "inertiaKgM2": 0.00048, "gearboxFriction": 0.02 },
+    // goBILDA 4-stage Viper-Slide (240 mm slides): 696 mm of travel, 120 mm per pulley turn.
+    // massLbs is what the motor feels: the claw at full speed, each stage at its share of it.
+    { "name": "lift", "type": "slide", "motors": ["lift"], "kit": "goBILDA-Viper-4stage-240mm",
+      "massLbs": 1.26, "vertical": true }
+  ],
+
+  // Limelight 3A, used for the HIVE AprilTags (HiveTags: which way each HIVE is tipped, and aiming
+  // at the up CELL). [PLACEHOLDER] mount until it's decided: front, 12 in up, tilted up 35 degrees.
+  // The tags are under the CELLs facing down, so a level camera can't read them.
+  "limelights": [ { "name": "limelight", "zIn": 12, "tiltUpDeg": 35 } ],
+
+  "limitSwitches": [
+    { "name": "liftDown", "mechanism": "lift", "pressedBelow": 0.25 }
+  ],
+
+  "servos": [
+    { "name": "kicker", "type": "goBILDA-2000-25-4" },
+    { "name": "claw",   "type": "goBILDA-2000-25-3" }
+  ],
+
+  "crServos": [
+    { "name": "transfer", "type": "goBILDA-2000-25-4" }   // in continuous mode
+  ],
+
+  // Rollers spanning the front of the robot. The zone is where they touch a piece: they grip
+  // it by friction (squeezeN x gripFriction, less for a piece only partly under the rollers'
+  // ends, which they push aside) and pull it in at up to their surface speed, loading the
+  // motor. Past xMin it reaches the funnel and the throat into the hopper, which takes one
+  // piece at a time: two side by side wedge in the funnel (a jam) until one is knocked loose.
+  // The frame has a mouth mouthDepthIn deep behind xMin where pieces wait (and get pushed).
+  "intake": {
+    "device": "intake",
+    "rollerDiameterMm": 48,
+    "minSurfaceSpeedPerSecIn": 20,
+    "inwardIsPositive": true,
+    "zone": { "xMinIn": 8, "xMaxIn": 11.5, "yMinIn": -8, "yMaxIn": 8 },
+    "throatWidthIn": 5,          // one ball at a time; two side by side (5.6 in or more) jam
+    "squeezeN": 6,               // [ESTIMATE] how hard the compliant rollers press on a ball
+    "gripFriction": 0.8,         // [ESTIMATE] roller on smooth polyethylene
+    "mouthDepthIn": 2,
+    "accepts": ["pollen", "nectar-red", "nectar-blue"]
+  },
+
+  "hopper": { "capacity": 4, "transfer": "transfer", "transferSeconds": 0.3 },
+
+  // Ball exit speed = efficiency x flywheel surface speed, at a fixed 55 degree hood angle.
+  "launcher": {
+    "flywheel": "flywheel",
+    "wheelDiameterMm": 96,
+    "efficiency": 0.5,
+    "angleDeg": 55,
+    "xIn": 1, "yIn": 0, "heightIn": 15,
+    "feederServo": "kicker",
+    "fireAbove": 0.6,
+    "spin": "backspin"           // wheel below the ball, hood above: the ball leaves with backspin
+  },
+
+  // The lift leans back 6 degrees, so the claw moves 0.104 in back per inch up: from just
+  // behind the robot (low) to 3.5 in behind it at the top of the slide's 27.4 in of travel -
+  // far enough to reach over a FLOWER's base.
+  "grippers": [
+    // gripForceN [ESTIMATE]: how hard the closed claw holds (friction on a round, smooth ball).
+    // A shock needing more than that to carry the NECTAR along - hitting a wall at more than
+    // about 40 in/s, the lift slamming down into its stop - shakes it loose.
+    { "name": "claw", "servo": "claw", "closedBelow": 0.45,
+      "xIn": -9.6, "xRaisedIn": -12.46, "yIn": 0,
+      "heightMechanism": "lift", "baseHeightIn": 1.8, "raisedHeightIn": 29.2,
+      "grabRadiusIn": 2.5, "gripForceN": 1.5, "accepts": ["nectar-red", "nectar-blue"] }
+  ],
+
+  // Looks at the ball waiting at the launcher.
+  "colorSensors": [
+    { "name": "hopperColor", "hopperSlot": 0 }
+  ],
+
+  // Dead wheels plugged into the encoder ports of rightFront (parallel) and rightBack
+  // (perpendicular). Reading those motors' encoders gives the dead wheel counts. Each 4-bar pod
+  // sits inside a crossbar (the drive motors fill the side rails).
+  "odometryPods": [
+    { "name": "rightFront", "type": "goBILDA-4-Bar-Odometry-Pod", "xIn": 0.5, "yIn": -4.5, "direction": "forward" },
+    { "name": "rightBack",  "type": "goBILDA-4-Bar-Odometry-Pod", "xIn": -6.0, "yIn": 0.0, "direction": "lateral" }
+  ]
+}

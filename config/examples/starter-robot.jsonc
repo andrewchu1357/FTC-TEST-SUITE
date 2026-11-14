@@ -1,0 +1,115 @@
+// =============================================================================
+//  Simulated robot definition
+// =============================================================================
+//  Device "name"s must match the names in your Control Hub's robot configuration,
+//  exactly as your code passes them to hardwareMap.get(...).
+//
+//  Units go on the key: "widthIn" / "widthMm" / "widthCm" / "widthM",
+//  "massLbs" / "massKg", "headingDeg" / "headingRad".
+//  Robot-frame positions: x = forward, y = left, measured from the robot's center.
+//
+//  Calibrate the values marked [CALIBRATE] against the real robot (see README).
+// =============================================================================
+{
+  // Frame footprint (FTC max starting size is 18 x 18 in).
+  "lengthIn": 18,
+  "widthIn": 18,
+  "massLbs": 30,                        // [CALIBRATE] weigh the robot
+
+  "battery": {
+    "volts": 12.8,                      // resting voltage of a charged battery
+    "internalResistanceOhms": 0.1       // [CALIBRATE] battery + wiring; voltage sag under load.
+                                        // A battery analyzer gives the battery's part; goBILDA
+                                        // suggests retiring packs above 130-200 mOhm.
+  },
+
+  // How long hardware calls take (ms). Robot code waits for each one, so this sets the
+  // OpMode's loop time (shown under the match timer). gm0: ~2 ms per Control Hub command,
+  // ~3 ms over USB/RS-485; I2C (IMU, color, distance) is slower. [CALIBRATE] compare the
+  // simulator's loop time with your robot's and adjust.
+  "hubTiming": { "controlHubCommandMs": 2, "expansionHubCommandMs": 3, "i2cMs": 3 },
+
+  "drivetrain": {
+    "type": "mecanum",
+    "wheelDiameterMm": 104,             // goBILDA 104 mm mecanum
+    "trackWidthIn": 14.5,               // left-right distance between wheel centers
+    "wheelbaseIn": 13.0,                // front-back distance between wheel centers
+    "gearRatio": 1.0,                   // motor output turns per wheel turn
+    "wheelFriction": 0.9,               // [CALIBRATE] traction on foam tiles
+    "rollerFriction": 0.2,              // [CALIBRATE] raise this if real strafing is slower than the sim's
+    "gearboxFriction": 0.06,            // drag as a fraction of stall torque (affects coasting)
+
+    // "mountedReversed": true means positive power drives that wheel backward, which is
+    // how left-side motors end up on most mecanum chassis. Your code fixes this with
+    // setDirection(REVERSE), just as on the real robot.
+    "motors": {
+      "frontLeft":  { "name": "leftFront",  "type": "goBILDA-5203-312", "mountedReversed": true },
+      "frontRight": { "name": "rightFront", "type": "goBILDA-5203-312" },
+      "backLeft":   { "name": "leftBack",   "type": "goBILDA-5203-312", "mountedReversed": true },
+      "backRight":  { "name": "rightBack",  "type": "goBILDA-5203-312" }
+    }
+  },
+
+  // How the Control Hub is physically mounted. If your code's RevHubOrientationOnRobot
+  // doesn't match this, the IMU readings come out wrong exactly as they would for real.
+  "imu": {
+    "name": "imu",
+    "logo": "UP",                       // UP, DOWN, FORWARD, BACKWARD, LEFT, RIGHT
+    "usb": "FORWARD",
+    "driftDegPerMin": 0.0,
+    "noiseDeg": 0.0
+  },
+
+  // Hubs are created automatically (Control Hub, then "Expansion Hub 2" if you run out of
+  // ports). List them only to choose names or pin devices to specific ports.
+  // "hubs": [ { "name": "Control Hub" }, { "name": "Expansion Hub 2" } ],
+
+  // Motors that are not part of the drivetrain.
+  "motors": [
+    { "name": "lift", "type": "goBILDA-5203-435" }
+  ],
+
+  // What those motors drive. Motors not listed here spin freely (intake rollers, flywheels).
+  //   slide: "travelIn", "spoolDiameterMm", "massLbs" (carriage + payload), "vertical"
+  //   arm:   "armLengthIn", "massLbs" (at the end), "minDeg"/"maxDeg"/"startDeg" (0 = horizontal)
+  //   free:  "inertiaKgM2"
+  "mechanisms": [
+    {
+      "name": "lift",
+      "type": "slide",
+      "motors": ["lift"],
+      "spoolDiameterMm": 38.2,
+      "travelIn": 28,
+      "massLbs": 3.5,
+      "vertical": true
+    }
+  ],
+
+  // Limit switches tied to a mechanism. Thresholds use the mechanism's units
+  // (inches for slides, degrees for arms). Works as TouchSensor or DigitalChannel.
+  "limitSwitches": [
+    { "name": "liftDown", "mechanism": "lift", "pressedBelow": 0.25 }
+  ],
+
+  // Positional servos. Range is the servo's full travel at usAtRangeStart..usAtRangeEnd
+  // microseconds (goBILDA 2000 series: 300 deg at 500-2500 us).
+  "servos": [
+    { "name": "claw", "rangeDeg": 300, "secPer60Deg": 0.2 }
+  ],
+
+  "crServos": [
+    { "name": "intake", "maxRpm": 150 }
+  ],
+
+  // Time-of-flight distance sensors (REV 2m: maxRange about 78 in).
+  "distanceSensors": [
+    { "name": "frontDistance", "xIn": 9, "yIn": 0, "headingDeg": 0, "maxRangeIn": 78 }
+  ]
+
+  // Dead-wheel odometry. A pod whose name matches a motor replaces that motor port's
+  // encoder (as when a dead wheel is plugged into a drive motor's encoder port).
+  // "odometryPods": [
+  //   { "name": "rightFront", "xIn": 0, "yIn": -6, "direction": "forward", "wheelDiameterMm": 32, "ticksPerRev": 2000 },
+  //   { "name": "rightBack",  "xIn": -4, "yIn": 0,  "direction": "lateral", "wheelDiameterMm": 32, "ticksPerRev": 2000 }
+  // ]
+}

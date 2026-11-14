@@ -1,0 +1,367 @@
+// Windows packaging: an app folder with "<Name>.exe", its own Java (runtime/) and the app (app/),
+// and that folder zipped. Applied by viewer/build.gradle (and demo/build.gradle).
+//
+// What the package is built to do on Windows:
+//   - Nothing to install, and nothing that needs an administrator: unzip anywhere and double-click.
+//     Java is inside (jlink), so the computer needs none.
+//   - The .exe is the JDK's own launcher (jpackage, --type app-image, which needs no installer
+//     tools). Java runs inside "<Name>.exe" itself, so Task Manager, the taskbar and "Pin to taskbar"
+//     show the app, not "OpenJDK Platform binary".
+//   - Every native library the app loads (JavaFX's, FlatLaf's, JNA's) is already unpacked in
+//     app\bin. Normally each unpacks itself into the user's profile or the temp folder on first
+//     use, which is slow the first time and is what school virus scanners like least.
+//   - The Java runtime is linked uncompressed and with its class-data archive (CDS), for the
+//     shortest start on a slow disk.
+//   - The app's files (config, TeamCode, robots) aren't in the zip as loose files. They are in
+//     app\starter and the app copies them into its working folder itself, never over a file that
+//     is already there: unzipping a newer version over an old one can't overwrite anyone's work.
+//   - It starts even where Windows 11's Smart App Control refuses the unsigned .exe: see
+//     LAUNCHER_VERSION below, and the "Start <name>.cmd" file each folder gets.
+//
+// jpackage only makes Windows launchers on Windows, so these tasks are skipped elsewhere.
+
+import java.util.zip.ZipFile
+
+def hostIsWindows = System.getProperty('os.name').toLowerCase().contains('win')
+
+// The version number stamped into the .exe files. It never changes, on purpose, so that the
+// .exe files come out byte for byte the same from every build (with the same JDK and icon).
+//
+// The apps aren't signed, and Windows 11's Smart App Control lets an unsigned program run only
+// if Microsoft's cloud service thinks well of that exact file. On the PC these were first built
+// on, the same .exe was refused when it was minutes old and allowed four hours later, while
+// .exe files stamped with the day's date (a new file every day) were refused afresh. A file
+// that stays the same keeps whatever standing it has earned, on every PC it has run on. The
+// app's real version, the build date, is in the .cfg files next to the jars; the app reads it there.
+//
+// Whatever Smart App Control decides about the .exe, each folder also gets "Start <name>.cmd",
+// which runs Java's own launcher (runtime\bin\javaw.exe). That one is signed by its publisher,
+// which Smart App Control accepts.
+def LAUNCHER_VERSION = '2026.11.13'
+
+/** Runs a command, failing with its output if it fails. */
+def runTool = { List<String> cmd ->
+    def p = new ProcessBuilder(cmd).redirectErrorStream(true).start()
+    def out = p.inputStream.text
+    if (p.waitFor() != 0) throw new GradleException("${new File(cmd[0]).name} failed:\n${out}")
+    out
+}
+
+/** The JDK that packages the app and whose modules become its runtime: the build's Java 21. */
+def packagingJdk = {
+    def jdk = javaToolchains.launcherFor { languageVersion = JavaLanguageVersion.of(21) }.get().metadata.installationPath.asFile
+    if (!new File(jdk, 'jmods').isDirectory() || !new File(jdk, 'bin/jpackage.exe').isFile()) {
+        throw new GradleException("The Java 21 at ${jdk} is not a full JDK (no jmods folder or no jpackage). " +
+                'Install Eclipse Temurin 21 (JDK), or let the launcher scripts download one.')
+    }
+    jdk
+}
+
+/**
+ * The app's icon as an .ico: small sizes as bitmaps (every version of Windows reads them), 256 as PNG.
+ */
+ext.writeWindowsIcon = { File png, File ico ->
+    def src = javax.imageio.ImageIO.read(png)
+    def scaled = { int size ->
+        def img = src
+        while (img.width > size) {
+            int next = Math.max(size, img.width.intdiv(2))
+            def smaller = new java.awt.image.BufferedImage(next, next, java.awt.image.BufferedImage.TYPE_INT_ARGB)
+            def g = smaller.createGraphics()
+            g.setRenderingHint(java.awt.RenderingHints.KEY_INTERPOLATION, java.awt.RenderingHints.VALUE_INTERPOLATION_BICUBIC)
+            g.drawImage(img, 0, 0, next, next, null)
+            g.dispose()
+            img = smaller
+        }
+        img
+    }
+    def entries = [16, 20, 24, 32, 40, 48, 64, 256].collect { int size ->
+        def img = scaled(size)
+        if (size == 256) {
+            def bytes = new ByteArrayOutputStream()
+            javax.imageio.ImageIO.write(img, 'png', bytes)
+            return [size, bytes.toByteArray()]
+        }
+        // A 32-bit bitmap: header (twice the height: colours, then the transparency mask), rows bottom-up.
+        int maskRow = ((size + 31).intdiv(32)) * 4
+        def b = java.nio.ByteBuffer.allocate(40 + size * size * 4 + maskRow * size).order(java.nio.ByteOrder.LITTLE_ENDIAN)
+        b.putInt(40).putInt(size).putInt(size * 2).putShort((short) 1).putShort((short) 32).putInt(0)
+                .putInt(size * size * 4 + maskRow * size).putInt(0).putInt(0).putInt(0).putInt(0)
+        for (int y = size - 1; y >= 0; y--) {
+            for (int x = 0; x < size; x++) {
+                int argb = img.getRGB(x, y)
+                b.put((byte) argb).put((byte) (argb >> 8)).put((byte) (argb >> 16)).put((byte) (argb >>> 24))
+            }
+        }
+        for (int y = size - 1; y >= 0; y--) {
+            byte[] row = new byte[maskRow]
+            for (int x = 0; x < size; x++) if ((img.getRGB(x, y) >>> 24) == 0) row[x >> 3] |= (byte) (0x80 >> (x & 7))
+            b.put(row)
+        }
+        [size, b.array()]
+    }
+    def out = java.nio.ByteBuffer.allocate(6 + 16 * entries.size() + (entries.sum { it[1].length } as int)).order(java.nio.ByteOrder.LITTLE_ENDIAN)
+    out.putShort((short) 0).putShort((short) 1).putShort((short) entries.size())
+    int offset = 6 + 16 * entries.size()
+    entries.each { int size, byte[] data ->
+        out.put((byte) (size % 256)).put((byte) (size % 256)).put((byte) 0).put((byte) 0)
+                .putShort((short) 1).putShort((short) 32).putInt(data.length).putInt(offset)
+        offset += data.length
+    }
+    entries.each { out.put(it[1] as byte[]) }
+    ico.parentFile.mkdirs()
+    ico.bytes = out.array()
+}
+
+/**
+ * The Java runtime that goes into the app folders: only the modules the app needs, plus javac
+ * (the app compiles team code). Registered once, in the viewer project.
+ *
+ * Linked uncompressed and with the class-data archive: a compressed runtime is smaller on disk
+ * but every class is unpacked as it loads, and the zip compresses the download anyway.
+ */
+ext.registerWindowsRuntime = { List<String> modules ->
+    tasks.register('winAppRuntime') {
+        description = 'Links the Java runtime that goes inside the Windows app folders (jlink).'
+        onlyIf { hostIsWindows }
+        def out = layout.buildDirectory.dir('windows/runtime')
+        inputs.property('modules', modules)
+        inputs.property('javaVersion', providers.provider { hostIsWindows ? new File(packagingJdk(), 'release').text : '' })
+        outputs.dir(out)
+        doLast {
+            def jdk = packagingJdk()
+            def dir = out.get().asFile
+            project.delete(dir) // jlink won't write into an existing folder
+            runTool([new File(jdk, 'bin/jlink.exe').path, '--module-path', new File(jdk, 'jmods').path,
+                     '--add-modules', modules.join(','), '--strip-debug', '--no-header-files', '--no-man-pages',
+                     '--compress', 'zip-0', '--generate-cds-archive', '--output', dir.path])
+        }
+    }
+    tasks.register('winAppIcon') {
+        description = "The apps' icon as an .ico file."
+        def png = file('src/main/resources/icon/app-icon.png')
+        def ico = layout.buildDirectory.file('windows/app.ico')
+        inputs.file(png)
+        outputs.file(ico)
+        doLast { writeWindowsIcon(png, ico.get().asFile) }
+    }
+}
+
+/**
+ * Registers "<task>" (the app folder in build/windows/<name>/) and "<zipTask>" (that folder zipped
+ * into the viewer's build/dist/).
+ *
+ * spec:
+ *   task, zipTask, zipName      task names and the zip's file name
+ *   name                        the app's name: the folder, the .exe, the window
+ *   description                 one line for the .exe's properties
+ *   viewer                      the viewer project (its installDist gives the jars)
+ *   installName                 the folder installDist writes under build/install
+ *   mainClass                   the class the .exe starts
+ *   extraJars                   [name in app\lib: file provider] put ahead of the app's jars (the demo's jar)
+ *   jvmArgs                     Java options for the window
+ *   home                        the working folder ("${user.home}\\..." or "$ROOTDIR": see AppHome)
+ *   resetHome                   true: the working folder is emptied at every launch (the demo)
+ *   logName                     the log file's name in %LOCALAPPDATA%\FTC Test Suite\Logs
+ *   starter                     Closure configuring a CopySpec: what goes into app\starter
+ *   starterEdits                Closure(File starterDir) run after the copy (the demo turns the web pages off)
+ *   console                     optional [name:, mainClass:, jvmArgs:]: a second, command-line .exe
+ *   readme                      text of "Read me.txt" in the folder
+ */
+ext.registerWindowsApp = { Map spec ->
+    def viewer = spec.viewer as Project
+    def stage = layout.buildDirectory.dir("windows/${spec.name}")
+    def work = layout.buildDirectory.dir("windows/${spec.task}-work")
+    def installDir = viewer.layout.buildDirectory.dir("install/${spec.installName}")
+    def runtime = viewer.layout.buildDirectory.dir('windows/runtime')
+    def ico = viewer.layout.buildDirectory.file('windows/app.ico')
+    def agentJar = rootProject.project(':sdk-shim').layout.buildDirectory.file('agent/sim-clock-agent.jar')
+    def extraJars = (spec.extraJars ?: [:]) as Map
+    def rootDir = rootProject.projectDir
+
+    tasks.register(spec.task as String) {
+        group = 'distribution'
+        description = "Builds the \"${spec.name}\" folder for Windows: ${spec.name}.exe with its own Java (build/windows)."
+        dependsOn "${viewer.path}:installDist", ':sdk-shim:clockAgentJar', "${viewer.path}:winAppRuntime", "${viewer.path}:winAppIcon"
+        extraJars.values().each { dependsOn it }
+        onlyIf {
+            if (!hostIsWindows) logger.lifecycle("${spec.task}: skipped. The Windows app is packaged on Windows (the JDK's jpackage only makes launchers for the system it runs on).")
+            hostIsWindows
+        }
+        outputs.dir(stage)
+        outputs.upToDateWhen { false } // the starter files and the day's version: always staged afresh (a few seconds)
+        doLast {
+            def jdk = packagingJdk()
+            def version = (project.findProperty('appVersion') ?: new Date().format('yyyy.M.d')) as String
+            def stageDir = stage.get().asFile, workDir = work.get().asFile
+            project.delete(stageDir, workDir)
+            def input = new File(workDir, 'input')
+            ['lib', 'bin', 'starter'].each { new File(input, it).mkdirs() }
+
+            // The app's jars, in the order of Gradle's own start script (it matters: several
+            // libraries bring a "core" jar, and the shim must come before them).
+            def install = installDir.get().asFile
+            def startScript = new File(install, 'bin').listFiles().find { it.name.endsWith('.bat') }
+            def cpLine = startScript.readLines().find { it.startsWith('set CLASSPATH=') }
+            if (cpLine == null) throw new GradleException("No classpath in ${startScript}")
+            def jars = cpLine.substring('set CLASSPATH='.length()).split(';').collect { it.substring(it.lastIndexOf('\\') + 1) }
+            project.copy { from new File(install, 'lib'); into new File(input, 'lib') }
+            extraJars.each { String name, jar -> project.copy { from jar; into new File(input, 'lib'); rename { name } } }
+            def classpath = (extraJars.keySet() as List<String>) + jars
+            project.copy { from agentJar; into input }
+
+            // Native libraries, unpacked now instead of on every computer's first launch. JavaFX
+            // looks in ..\bin next to its jars; FlatLaf and JNA are pointed here by the options below.
+            def bin = new File(input, 'bin')
+            def unpack = { File jar, Closure<Boolean> wanted ->
+                new ZipFile(jar).withCloseable { zip ->
+                    zip.entries().each { e ->
+                        if (!e.directory && wanted(e.name)) {
+                            new File(bin, e.name.substring(e.name.lastIndexOf('/') + 1)).withOutputStream { it << zip.getInputStream(e) }
+                        }
+                    }
+                }
+            }
+            new File(input, 'lib').listFiles().each { File jar ->
+                if (jar.name ==~ /javafx-.*-win\.jar/) unpack(jar) { String n -> !n.contains('/') && n.endsWith('.dll') }
+                else if (jar.name ==~ /jna-\d.*\.jar/) unpack(jar) { String n -> n == 'com/sun/jna/win32-x86-64/jnidispatch.dll' }
+                else if (jar.name ==~ /flatlaf-\d.*\.jar/) unpack(jar) { String n -> n == 'com/formdev/flatlaf/natives/flatlaf-windows-x86_64.dll' }
+            }
+            ['prism_d3d.dll', 'glass.dll', 'jnidispatch.dll', 'flatlaf-windows-x86_64.dll'].each {
+                if (!new File(bin, it).isFile()) throw new GradleException("${it} wasn't found in the app's jars: is this a Windows build of them?")
+            }
+
+            // What the app copies into its working folder (see AppHome).
+            def starterDir = new File(input, 'starter')
+            project.copy {
+                from(rootDir, spec.starter as Closure)
+                into starterDir
+            }
+            if (spec.starterEdits) (spec.starterEdits as Closure).call(starterDir)
+
+            // The launcher(s): jpackage copies input\ to app\ and the runtime to runtime\.
+            // The .exe files get LAUNCHER_VERSION, not the day's version (that one is in the .cfg
+            // files, which is where the app reads it): see the note at LAUNCHER_VERSION.
+            def args = [new File(jdk, 'bin/jpackage.exe').path, '--type', 'app-image', '--name', spec.name as String,
+                        '--dest', stageDir.parentFile.path, '--input', input.path, '--main-jar', 'lib/viewer.jar',
+                        '--main-class', spec.mainClass as String, '--runtime-image', runtime.get().asFile.path,
+                        '--icon', ico.get().asFile.path, '--app-version', LAUNCHER_VERSION, '--vendor', 'FTC Test Suite',
+                        '--description', spec.description as String, '--copyright', 'FTC Test Suite']
+            if (spec.console) {
+                def props = new File(workDir, 'console.properties')
+                props.text = "main-class=${spec.console.mainClass}\nwin-console=true\n"
+                args += ['--add-launcher', "${spec.console.name}=${props.path}".toString()]
+            }
+            runTool(args as List<String>)
+
+            // Options every launcher gets. $APPDIR (the app folder) and $ROOTDIR (the folder the
+            // .exe is in) are filled in by jpackage's launcher, and by the .cmd starters below.
+            def common = ["-Djpackage.app-version=${version}".toString(), '-javaagent:$APPDIR\\sim-clock-agent.jar',
+                          '-Djna.boot.library.path=$APPDIR\\bin', '-Dflatlaf.nativeLibraryPath=$APPDIR\\bin']
+            def windowOptions = common + ["-Dtestbed.app=${spec.name}".toString(), "-Dtestbed.version=${version}".toString(),
+                                          "-Dtestbed.home=${spec.home}".toString(), '-Dtestbed.starter=$APPDIR\\starter',
+                                          '-Dtestbed.log=${env.LOCALAPPDATA}\\FTC Test Suite\\Logs\\' + spec.logName]
+            if (spec.resetHome) windowOptions << '-Dtestbed.home.reset=true'
+            windowOptions += (spec.jvmArgs as List<String>)
+            // The command-line tool works in the folder it is run in. It is told where the working
+            // folder and the starter files are only so that it can fill that folder the first time.
+            def consoleOptions = !spec.console ? [] : common + ["-Dtestbed.version=${version}".toString(),
+                    "-Dtestbed.home=${spec.home}".toString(), '-Dtestbed.starter=$APPDIR\\starter'] + (spec.console.jvmArgs as List<String>)
+
+            // jpackage's launcher settings, rewritten: the classpath in the right order, and the options.
+            def cfg = { String mainClass, List<String> options ->
+                def lines = ['[Application]']
+                classpath.each { lines << ('app.classpath=$APPDIR\\lib\\' + it) }
+                lines << "app.mainclass=${mainClass}".toString() << '' << '[JavaOptions]'
+                options.each { lines << ('java-options=' + it) }
+                lines.join('\r\n') + '\r\n'
+            }
+            def write = { String launcher, String text ->
+                def f = new File(stageDir, "app/${launcher}.cfg")
+                f.setWritable(true)
+                f.setText(text, 'UTF-8')
+            }
+            write(spec.name as String, cfg(spec.mainClass as String, windowOptions))
+            if (spec.console) write(spec.console.name as String, cfg(spec.console.mainClass as String, consoleOptions))
+
+            // The same two programs started without the .exe files, by Java's own launcher in
+            // runtime\bin (see the note at LAUNCHER_VERSION for when that is needed). The classpath
+            // goes in the CLASSPATH variable, read from app\classpath.txt in order: a command line
+            // of fifty jar paths would be too long for cmd.
+            new File(stageDir, 'app/classpath.txt').setText(classpath.join('\r\n') + '\r\n', 'UTF-8')
+            def starter = { String title, String java, String mainClass, List<String> options, boolean window ->
+                def quoted = options.collect { '"' + it.replace('$APPDIR', '%HERE%app').replace('$ROOTDIR', '%HERE%.') + '"' }.join(' ')
+                def lines = ['@echo off',
+                             "rem Starts ${title} with the Java in this folder (runtime\\bin\\${java}), without the .exe.",
+                             'rem For Windows 11 PCs where Smart App Control won\'t run the .exe: it judges programs that',
+                             'rem have no publisher\'s signature by how well known they are, and can refuse a new one.',
+                             'rem Java\'s own program is signed by its publisher, so Windows runs it. "Read me.txt" has more.',
+                             'setlocal EnableExtensions',
+                             'set "HERE=%~dp0"',
+                             'set "CLASSPATH="',
+                             'for /f "usebackq delims=" %%j in ("%HERE%app\\classpath.txt") do call :add "%%j"',
+                             'rem PS4/PS5 controllers rumble over Bluetooth too.',
+                             'set "SDL_JOYSTICK_HIDAPI_PS4_RUMBLE=1"',
+                             'set "SDL_JOYSTICK_HIDAPI_PS5_RUMBLE=1"']
+                if (window) {
+                    lines << "start \"${title}\" \"%HERE%runtime\\bin\\${java}\" ${quoted} ${mainClass} %*".toString()
+                    lines << 'exit /b 0'
+                } else {
+                    lines << "\"%HERE%runtime\\bin\\${java}\" ${quoted} ${mainClass} %*".toString()
+                    lines << 'exit /b %errorlevel%'
+                }
+                // (No brackets round these: a folder name with a bracket in it would end them early.)
+                lines += ['', ':add',
+                          'if defined CLASSPATH set "CLASSPATH=%CLASSPATH%;%HERE%app\\lib\\%~1"& exit /b 0',
+                          'set "CLASSPATH=%HERE%app\\lib\\%~1"',
+                          'exit /b 0']
+                lines.join('\r\n') + '\r\n'
+            }
+            new File(stageDir, "Start ${spec.name}.cmd").setText(
+                    starter(spec.name as String, 'javaw.exe', spec.mainClass as String, windowOptions, true), 'UTF-8')
+            if (spec.console) {
+                new File(stageDir, "${spec.console.name}.cmd").setText(
+                        starter(spec.console.name as String, 'java.exe', spec.console.mainClass as String, consoleOptions, false), 'UTF-8')
+            }
+
+            if (spec.readme) {
+                def blocked = """
+If Windows won't run the .exe
+  Some Windows 11 PCs have Smart App Control on. It decides by itself whether a program
+  without a publisher's signature may run, and it can refuse this one ("Smart App Control
+  blocked an app that may be unsafe"). Then double-click "Start ${spec.name}.cmd" instead:
+  it starts the same app with the Java in the "runtime" folder, which is signed by its
+  publisher, so Windows runs it.${spec.console ? " (\"${spec.console.name}.cmd\" does the same for ${spec.console.name}.exe.)" : ''}
+  If Windows blocks that too, the files are marked as coming from the internet. Delete this
+  folder, right-click the zip you downloaded, choose Properties, tick "Unblock", press OK,
+  and unzip it again.
+  A school or company PC may be set up to run only approved programs from any folder you
+  can write to. Then nothing here can start, and only whoever looks after the PC can allow it.
+"""
+                new File(stageDir, 'Read me.txt').setText(((spec.readme as String) + blocked).replace('\n', '\r\n'), 'UTF-8')
+            }
+            // The license and the notices travel with the package, when the project has them (the
+            // public copy does). They're plain files at the top of the folder.
+            ['LICENSE', 'NOTICE', 'THIRD_PARTY_NOTICES.md'].each { n ->
+                def f = new File(rootDir, n)
+                if (f.isFile()) project.copy { from f; into stageDir }
+            }
+            long bytes = 0
+            stageDir.eachFileRecurse { if (it.isFile()) bytes += it.length() }
+            println "Built ${stageDir} (${String.format('%.0f', bytes / 1e6)} MB): open \"${spec.name}.exe\" in it to try it"
+        }
+    }
+
+    tasks.register(spec.zipTask as String, Zip) {
+        group = 'distribution'
+        description = "Builds ${spec.zipName}: \"${spec.name}\" for Windows x64, with its own Java. Unzip and double-click; no install, no administrator."
+        dependsOn spec.task
+        onlyIf { hostIsWindows }
+        archiveFileName = spec.zipName as String
+        destinationDirectory = viewer.layout.buildDirectory.dir('dist')
+        from(stage) { into spec.name as String }
+        doLast {
+            println "Built ${archiveFile.get().asFile} (${String.format('%.0f', archiveFile.get().asFile.length() / 1e6)} MB)"
+        }
+    }
+}

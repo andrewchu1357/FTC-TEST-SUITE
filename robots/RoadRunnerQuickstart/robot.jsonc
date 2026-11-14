@@ -1,0 +1,44 @@
+// =============================================================================
+//  RoadRunnerQuickstart - Road Runner 1.0's quickstart, unmodified
+// =============================================================================
+//  code/ is TeamCode from github.com/acmerobotics/road-runner-quickstart (commit 6e63a77),
+//  exactly as you download it (LICENSE next to this file): MecanumDrive, the localizers
+//  (drive encoders, two or three dead wheels, goBILDA Pinpoint, SparkFun OTOS), and the tuning
+//  OpModes TuningOpModes registers. Tune it here as you would on a robot - follow
+//  rr.brott.dev/docs/v1-0/tuning - then copy the values to your real robot (and see how close
+//  the simulator's robot is to yours with gradlew calibrate).
+//
+//  The robot: a goBILDA Strafer-style chassis with 312 RPM motors, 104 mm GripForce wheels, a
+//  Control Hub IMU, and a goBILDA Pinpoint with two 4-bar pods. Road Runner's own tuning data
+//  (ramp logs) is saved under sdcard/RoadRunner/ in the project folder.
+// =============================================================================
+{
+  "lengthIn": 17,
+  "widthIn": 16.5,
+  "heightIn": 12,
+  "massLbs": 26,
+
+  "drivetrain": {
+    "type": "mecanum",
+    "wheel": "goBILDA-GripForce-104mm-mecanum",
+    "trackWidthIn": 14.3,
+    "wheelbaseIn": 12.0,
+    "motorType": "goBILDA-5203-312",
+    "motors": {
+      "frontLeft":  { "name": "leftFront", "mountedReversed": true },
+      "frontRight": { "name": "rightFront" },
+      "backLeft":   { "name": "leftBack", "mountedReversed": true },
+      "backRight":  { "name": "rightBack" }
+    }
+  },
+
+  "imu": { "name": "imu", "logo": "UP", "usb": "FORWARD" },
+
+  // The Pinpoint: X pod 3.5 in left of center tracking forward, Y pod 2 in behind center
+  // tracking sideways (Road Runner's PinpointLocalizer: parYTicks / perpXTicks).
+  "pinpoints": [
+    { "name": "pinpoint",
+      "xPod": { "type": "goBILDA-4-Bar-Odometry-Pod", "xIn": 0, "yIn": 3.5 },
+      "yPod": { "type": "goBILDA-4-Bar-Odometry-Pod", "xIn": -2.0, "yIn": 0 } }
+  ]
+}

@@ -1,0 +1,11 @@
+# Windows batch files need CRLF line endings, whatever the system they are checked out on.
+* text=auto
+*.bat text eol=crlf
+*.cmd text eol=crlf
+
+# Binary files
+*.png binary
+*.glb binary
+*.ico binary
+*.wav binary
+*.jar binary

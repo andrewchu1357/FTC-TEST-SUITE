@@ -1,0 +1,270 @@
+// Desktop viewer (Swing), headless runner, and the shim compatibility check.
+plugins {
+    id 'application'
+}
+
+// JavaFX (3D view) ships separate native jars per platform.
+def osName = System.getProperty('os.name').toLowerCase()
+def osArch = System.getProperty('os.arch').toLowerCase()
+def fxPlatform = osName.contains('mac') ? (osArch.contains('aarch64') ? 'mac-aarch64' : 'mac')
+        : osName.contains('win') ? 'win'
+        : (osArch.contains('aarch64') ? 'linux-aarch64' : 'linux')
+def fxVersion = '21.0.12'
+
+dependencies {
+    implementation project(':sim-core')
+    runtimeOnly project(':TeamCode')
+
+    for (m in ['base', 'graphics', 'controls', 'swing']) {
+        implementation "org.openjfx:javafx-${m}:${fxVersion}:${fxPlatform}"
+    }
+    // Game controllers (PS5 DualSense, PS4, Xbox, Logitech) through SDL2.
+    implementation 'com.badlogicgames.jamepad:jamepad:2.30.0.0'
+    // The Code tab's editor (syntax highlighting, line numbers, folding, search). BSD-3-Clause.
+    implementation 'com.fifesoft:rsyntaxtextarea:3.6.3'
+    // The look of every control, in the app's themes (Liquid Glass light/dark, Gruvbox, Nord...).
+    // Apache-2.0.
+    implementation 'com.formdev:flatlaf:3.5.4'
+    implementation 'com.formdev:flatlaf-intellij-themes:3.5.4'
+    // Windows only: the power state, the light/dark setting and the 1 ms timer, asked of Windows
+    // itself (see platform/Win32.java). Never loaded on other systems. Apache-2.0.
+    implementation 'net.java.dev.jna:jna:5.17.0'
+
+    testImplementation platform('org.junit:junit-bom:5.11.4')
+    testImplementation 'org.junit.jupiter:junit-jupiter'
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+}
+
+test {
+    useJUnitPlatform()
+    workingDir = rootProject.projectDir
+    jvmArgs '-Djava.awt.headless=true', '-Dtestbed.noGamepads=true', '-Dtestbed.noSound=true'
+    testLogging { events 'failed'; exceptionFormat 'full' }
+}
+
+application {
+    mainClass = 'org.ftctestbed.viewer.ViewerMain'
+}
+
+// How the app runs, shared by `run` and the Windows apps.
+// SDL only rumbles PS4/PS5 controllers over Bluetooth when asked to (it switches them to their
+// full report mode); over USB they rumble either way.
+def appEnvironment = [SDL_JOYSTICK_HIDAPI_PS4_RUMBLE: '1', SDL_JOYSTICK_HIDAPI_PS5_RUMBLE: '1']
+// The heap is handed back to Windows when the app sits idle (G1 otherwise keeps its high-water
+// mark): about 300 MB less memory while a window is just open.
+def appJvmArgs = ['-Dprism.vsync=true', '-XX:G1PeriodicGCInterval=30000', '-XX:MinHeapFreeRatio=10', '-XX:MaxHeapFreeRatio=30']
+
+tasks.named('run') {
+    description = 'Opens the simulator window.'
+    workingDir = rootProject.projectDir
+    environment appEnvironment
+    // Pass -Dtestbed.* debugging options (autostart, screenshot) through to the app.
+    systemProperties System.getProperties().findAll { it.key.toString().startsWith('testbed.') }
+    jvmArgs appJvmArgs
+}
+
+tasks.register('headless', JavaExec) {
+    group = 'application'
+    description = 'Runs one OpMode without a window. Example: gradlew headless --args="--opmode \'Encoder Drive Auto\' --log logs/auto.csv"'
+    classpath = sourceSets.main.runtimeClasspath
+    mainClass = 'org.ftctestbed.viewer.HeadlessMain'
+    workingDir = rootProject.projectDir
+    jvmArgs '-Djava.awt.headless=true'
+}
+
+tasks.register('checkShim', JavaExec) {
+    group = 'verification'
+    description = 'Checks that libraries TeamCode uses (FTCLib, ...) only call SDK APIs the shim provides.'
+    classpath = sourceSets.main.runtimeClasspath
+    mainClass = 'org.ftctestbed.sim.tools.ShimCheck'
+    def cp = sourceSets.main.runtimeClasspath
+    argumentProviders.add({
+        cp.files.findAll { it.name.endsWith('.jar') && !it.name.startsWith('sdk-shim') && !it.name.startsWith('sim-core') }
+                .collect { it.absolutePath }
+    } as CommandLineArgumentProvider)
+}
+
+
+// ======================================================================================
+// Windows
+//
+//   Run Simulator.bat             runs this project: it finds or
+//                                 downloads Java by itself and rebuilds when the code changed
+//   gradlew installWindowsApp   adds "FTC Test Suite" to the Start menu and the Desktop (runs the same)
+//   gradlew windowsApp          viewer/build/windows/FTC Test Suite/: FTC Test Suite.exe with its
+//                                 own Java, for Windows PCs without this project, Java or Gradle
+//   gradlew windowsZip          viewer/build/dist/FTC-Test-Suite-Windows.zip: that folder, to share
+//
+// None of it installs anything or needs an administrator. gradle/windows-app.gradle explains how
+// the app folder is put together and why.
+apply from: rootProject.file('gradle/windows-app.gradle')
+
+// Java options for Windows, on top of appJvmArgs:
+// - noerasebackground: Windows otherwise wipes the window white before Java repaints it, which
+//   flickers while the window is resized or uncovered.
+def windowsJvmArgs = ['-Dsun.awt.noerasebackground=true']
+if (osName.contains('win')) tasks.named('run') { jvmArgs windowsJvmArgs }
+
+// The Java modules the app needs (the compiler too, for team code).
+registerWindowsRuntime(['java.se', 'jdk.compiler', 'jdk.unsupported', 'jdk.management', 'jdk.crypto.ec', 'jdk.zipfs', 'jdk.httpserver',
+                        'jdk.localedata', 'jdk.charsets', 'jdk.accessibility', 'jdk.unsupported.desktop', 'jdk.jfr', 'jdk.attach'])
+
+// What the packaged apps copy into their working folder: config, TeamCode, robots and the docs
+// (without the team repository's .git folder: thousands of small read-only files nobody runs).
+ext.windowsStarter = {
+    include 'config/**', 'TeamCode/src/**', 'TeamCode/build.gradle', 'robots/**', 'README.md', 'docs/**'
+    exclude 'robots/*/build/**', '**/.DS_Store', '**/.git/**'
+}
+ext.windowsAppJvmArgs = appJvmArgs + windowsJvmArgs
+
+registerWindowsApp(
+        task: 'windowsApp', zipTask: 'windowsZip', zipName: 'FTC-Test-Suite-Windows.zip',
+        name: 'FTC Test Suite', description: 'FTC Test Suite: the simulator for FTC robot code',
+        viewer: project, installName: 'viewer', mainClass: application.mainClass.get(),
+        jvmArgs: windowsAppJvmArgs,
+        // The working folder: "FTC Sim\Workspaces\App" in the user's own folder.
+        home: '${user.home}\\FTC Sim\\Workspaces\\App', logName: 'FTC Test Suite.log',
+        starter: windowsStarter,
+        // ftc-sim.exe: headless runs from a terminal, on the same built-in Java.
+        console: [name: 'ftc-sim', mainClass: 'org.ftctestbed.viewer.HeadlessMain', jvmArgs: ['-Djava.awt.headless=true']],
+        readme: '''FTC Test Suite for Windows
+==========================
+
+Double-click "FTC Test Suite.exe".
+
+Nothing needs installing and nothing asks for an administrator. Java is in the
+"runtime" folder next to the .exe, so keep this folder together: the .exe needs
+"app" and "runtime". Unzip the whole download first (don't run it from inside the zip).
+
+The first time, Windows may say "Windows protected your PC" (the app isn't signed).
+Choose "More info", then "Run anyway".
+
+Your files
+  Team code, configs and robots are in "FTC Sim\\Workspaces\\App" in your user folder
+  (File > Show Working Folder opens it). The app makes that folder the first time it
+  opens and never replaces a file that is already there.
+  To work somewhere else (a USB stick, a shared drive), start it with the folder:
+      "FTC Test Suite.exe" --home "E:\\My Robot"
+
+Updating
+  Unzip the new version over this folder. Your files are not in it.
+
+If something isn't working
+  The log is %LOCALAPPDATA%\\FTC Test Suite\\Logs\\FTC Test Suite.log
+  (paste that path into File Explorer's address bar).
+  If the app closes or goes black when the 3D view opens (an old graphics driver), add this
+  line at the end of "app\\FTC Test Suite.cfg", then start the app again:
+      java-options=-Dprism.order=sw
+  The 3D view then says it isn't available on this computer; the 2D field and everything
+  else work.
+
+From a terminal
+  ftc-sim.exe runs OpModes and full matches without a window. Run it in your working
+  folder, for example:
+      ftc-sim.exe --match --auto "BuzzBot Auto Red" --teleop "BuzzBot TeleOp"
+
+Removing it
+  Delete this folder. Your working folder and the log stay until you delete them too.
+''')
+
+/** One line of a java @argfile: quoted when it holds a space, as the java launcher reads them. */
+def argLine = { String a -> a.contains(' ') || a.contains('#') ? '"' + a.replace('\\', '\\\\').replace('"', '\\"') + '"' : a }
+
+// What "Run Simulator.bat" and the Start menu shortcut run, in build/windows/ of the project:
+//   launcher.args, launcher-classes/   the tiny program that rebuilds when the code changed, then
+//                                      starts the app (platform/DevLaunch explains why it's separate)
+//   app.args                           the app itself: the installed jars, in Gradle's order
+// Paths are relative to the project folder, which is where the app runs.
+tasks.register('windowsLauncher') {
+    group = 'application'
+    description = 'Builds what "Run Simulator.bat" runs on Windows (it does this itself when the code changed).'
+    dependsOn 'installDist', ':sdk-shim:clockAgentJar'
+    def startScripts = tasks.named('startScripts')
+    def classes = sourceSets.main.output.classesDirs
+    def out = rootProject.layout.buildDirectory.dir('windows')
+    def mainClass = application.mainClass
+    def defaultArgs = application.applicationDefaultJvmArgs.findAll { !it.startsWith('-Xdock') }
+    def jvmArgs = windowsAppJvmArgs
+    outputs.dir(out)
+    outputs.upToDateWhen { false } // always written afresh (it takes no time): the classpath and the options shape these files
+    doLast {
+        def dir = out.get().asFile
+        project.sync {
+            from(classes) { include 'org/ftctestbed/viewer/platform/DevLaunch*.class' }
+            into new File(dir, 'launcher-classes')
+        }
+        def lib = 'viewer/build/install/viewer/lib/'
+        def app = ['-javaagent:sdk-shim/build/agent/sim-clock-agent.jar'] + defaultArgs + jvmArgs +
+                ['-cp', startScripts.get().classpath.files.collect { lib + it.name }.join(';'), mainClass.get()]
+        new File(dir, 'app.args').text = app.collect { argLine(it as String) }.join('\n') + '\n'
+        // The launcher is a few classes that live for a moment: one compiler tier, a small heap.
+        def launcher = ['-XX:TieredStopAtLevel=1', '-XX:+UseSerialGC', '-Xmx64m', '-Xshare:auto',
+                        '-Dtestbed.app=FTC Test Suite',
+                        '-Dtestbed.dev.app=build/windows/app.args',
+                        '-Dtestbed.dev.stamp=build/windows/.built',
+                        // The simulator's own code and build files (team code is compiled by the app itself).
+                        '-Dtestbed.dev.watch=sdk-shim/src/main;sim-core/src/main;viewer/src/main;build.gradle;settings.gradle;' +
+                                'viewer/build.gradle;sdk-shim/build.gradle;sim-core/build.gradle;TeamCode/build.gradle;gradle/windows-app.gradle',
+                        '-Dtestbed.dev.build=gradlew.bat|--console=plain|-q|windowsLauncher',
+                        '-cp', 'build/windows/launcher-classes', 'org.ftctestbed.viewer.platform.DevLaunch']
+        new File(dir, 'launcher.args').text = launcher.collect { argLine(it as String) }.join('\n') + '\n'
+
+        // The agent server (tools\ftc-sim-mcp.cmd): the same check without a window or a word on
+        // stdout, then the server itself.
+        def check = launcher.findAll { !it.startsWith('-Dtestbed.dev.app=') }
+        check.addAll(check.indexOf('-cp'), ['-Djava.awt.headless=true', '-Dtestbed.dev.stdio=true'])
+        new File(dir, 'agent-check.args').text = check.collect { argLine(it as String) }.join('\n') + '\n'
+        def agent = ['-javaagent:sdk-shim/build/agent/sim-clock-agent.jar', '-Dtestbed.noGamepads=true', '-Dtestbed.noSound=true', '-Xss4m',
+                     '-cp', startScripts.get().classpath.files.collect { lib + it.name }.join(';'), 'org.ftctestbed.viewer.agent.AgentMain']
+        new File(dir, 'agent.args').text = agent.collect { argLine(it as String) }.join('\n') + '\n'
+    }
+}
+
+// "FTC Test Suite" in the Start menu and on the Desktop, for this project on this PC.
+// The shortcuts run "Run Simulator.bat" (minimized: it's gone in a
+// moment), so they keep working when Java is updated; run this again only if the project folder
+// moves. Both shortcuts are in the user's own profile: no administrator.
+tasks.register('installWindowsApp') {
+    group = 'distribution'
+    description = 'Adds FTC Test Suite to the Start menu and the Desktop (Windows). Run it again if the project folder moves.'
+    dependsOn 'windowsLauncher', 'winAppIcon'
+    onlyIf { osName.contains('win') }
+    def projectDir = rootProject.projectDir
+    def ico = layout.buildDirectory.file('windows/app.ico')
+    def built = rootProject.layout.buildDirectory.file('windows/.built')
+    doLast {
+        built.get().asFile.text = '' // just built: the launcher needn't look again
+        // The icon in a place of its own, so cleaning the build doesn't blank the shortcuts.
+        def data = new File(System.getenv('LOCALAPPDATA') ?: (System.getProperty('user.home') + '\\AppData\\Local'), 'FTC Test Suite')
+        data.mkdirs()
+        def icon = new File(data, 'FTC Test Suite.ico')
+        icon.bytes = ico.get().asFile.bytes
+        def bat = new File(projectDir, 'Run Simulator.bat')
+        def q = { String s -> "'" + s.replace("'", "''") + "'" }
+        def script = """
+\$shell = New-Object -ComObject WScript.Shell
+\$places = @([Environment]::GetFolderPath('Programs'), [Environment]::GetFolderPath('Desktop'))
+foreach (\$place in \$places) {
+  \$link = \$shell.CreateShortcut((Join-Path \$place 'FTC Test Suite.lnk'))
+  \$link.TargetPath = \$env:ComSpec
+  \$link.Arguments = '/c ""' + ${q(bat.absolutePath)} + '" --shortcut"'
+  \$link.WorkingDirectory = ${q(projectDir.absolutePath)}
+  \$link.IconLocation = ${q(icon.absolutePath)}
+  \$link.Description = 'FTC Test Suite: the simulator for FTC robot code'
+  \$link.WindowStyle = 7
+  \$link.Save()
+  Write-Output ("Installed " + (Join-Path \$place 'FTC Test Suite.lnk'))
+}
+"""
+        def ps = new File(temporaryDir, 'shortcuts.ps1')
+        ps.text = script
+        def p = new ProcessBuilder('powershell.exe', '-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-File', ps.path)
+                .redirectErrorStream(true).start()
+        def output = p.inputStream.text
+        if (p.waitFor() != 0) {
+            throw new GradleException("Couldn't make the shortcuts (PowerShell said: ${output.trim()}). " +
+                    '"Run Simulator.bat" in the project folder starts the app without them.')
+        }
+        print output
+    }
+}

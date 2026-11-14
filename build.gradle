@@ -1,0 +1,76 @@
+// Shared settings for every module.
+//
+// Robot-side code (sdk-shim, TeamCode) compiles at Java 8, the same language level as the
+// real FTC SDK, so anything that builds here also builds in Android Studio for the robot.
+// The simulator itself uses Java 21.
+
+subprojects {
+    apply plugin: 'java'
+
+    repositories {
+        mavenCentral()
+        // Road Runner (TeamCode's dependency, so every module that runs robot code needs it)
+        maven {
+            url = 'https://maven.brott.dev/'
+            content { includeGroupByRegex 'com\\.acmerobotics.*' }
+        }
+        // Pedro Pathing's tuning library dependencies (Sloth)
+        maven {
+            url = 'https://repo.dairy.foundation/releases/'
+            content { includeGroupByRegex 'dev\\.frozenmilk.*' }
+        }
+    }
+
+    java {
+        toolchain {
+            languageVersion = JavaLanguageVersion.of(21)
+        }
+    }
+
+    tasks.withType(JavaCompile).configureEach {
+        options.encoding = 'UTF-8'
+        options.compilerArgs += ['-Xlint:-options']
+    }
+}
+
+configure([project(':sdk-shim'), project(':TeamCode')]) {
+    tasks.named('compileJava') {
+        options.release = 8
+    }
+    // Tests run on the desktop only, so they can use the simulator (Java 21).
+    tasks.named('compileTestJava') {
+        options.release = 21
+    }
+}
+
+// TeamCode: Java 8 language, but the newer library methods Android's compiler backports for the
+// robot (List.of, Map.of...) are allowed, as in Android Studio. (The simulator compiles robot
+// packages and the Code tab's TeamCode the same way: RobotCode.languageOptions.)
+project(':TeamCode') {
+    tasks.named('compileJava') {
+        options.release = null
+        sourceCompatibility = '1.8'
+        targetCompatibility = '1.8'
+        options.compilerArgs += ['-Xlint:-options']
+    }
+}
+
+configure([project(':sim-core'), project(':viewer')]) {
+    tasks.withType(JavaCompile).configureEach {
+        options.release = 21
+    }
+}
+
+// Every JVM that runs robot code loads the clock agent (sdk-shim's clockAgentJar), so library
+// and team code timing runs on simulated time.
+def clockAgent = project(':sdk-shim').layout.buildDirectory.file('agent/sim-clock-agent.jar')
+subprojects {
+    tasks.withType(Test).configureEach {
+        dependsOn ':sdk-shim:clockAgentJar'
+        jvmArgumentProviders.add({ ['-javaagent:' + clockAgent.get().asFile.absolutePath] } as CommandLineArgumentProvider)
+    }
+    tasks.withType(JavaExec).configureEach {
+        dependsOn ':sdk-shim:clockAgentJar'
+        jvmArgumentProviders.add({ ['-javaagent:' + clockAgent.get().asFile.absolutePath] } as CommandLineArgumentProvider)
+    }
+}

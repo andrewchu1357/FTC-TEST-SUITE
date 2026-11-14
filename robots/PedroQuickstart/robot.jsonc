@@ -1,0 +1,41 @@
+// =============================================================================
+//  PedroQuickstart - Pedro Pathing 3's Quickstart, unmodified
+// =============================================================================
+//  code/ is TeamCode from github.com/Pedro-Pathing/Quickstart (master, Pedro Pathing 3.0.1),
+//  exactly as you download it (LICENSE next to this file). Its Constants.create() returns
+//  null until you fill it in; pedropathing.com's Tuning / Constants page shows a complete one
+//  (TeamCode's PedroTest uses that example on this robot).
+//
+//  The robot: the same Strafer-style chassis as RoadRunnerQuickstart, with a goBILDA Pinpoint
+//  (X pod 3.5 in left of center, Y pod 2 in behind it: xPodOffset 3.5, yPodOffset -2).
+// =============================================================================
+{
+  "lengthIn": 17,
+  "widthIn": 16.5,
+  "heightIn": 12,
+  "massLbs": 26,
+
+  "drivetrain": {
+    "type": "mecanum",
+    "wheel": "goBILDA-GripForce-104mm-mecanum",
+    "trackWidthIn": 14.3,
+    "wheelbaseIn": 12.0,
+    "motorType": "goBILDA-5203-312",
+    "motors": {
+      "frontLeft":  { "name": "leftFront", "mountedReversed": true },
+      "frontRight": { "name": "rightFront" },
+      "backLeft":   { "name": "leftBack", "mountedReversed": true },
+      "backRight":  { "name": "rightBack" }
+    }
+  },
+
+  "imu": { "name": "imu", "logo": "UP", "usb": "FORWARD" },
+
+  // The Pinpoint: X pod 3.5 in left of center tracking forward, Y pod 2 in behind center
+  // tracking sideways (Road Runner's PinpointLocalizer: parYTicks / perpXTicks).
+  "pinpoints": [
+    { "name": "pinpoint",
+      "xPod": { "type": "goBILDA-4-Bar-Odometry-Pod", "xIn": 0, "yIn": 3.5 },
+      "yPod": { "type": "goBILDA-4-Bar-Odometry-Pod", "xIn": -2.0, "yIn": 0 } }
+  ]
+}

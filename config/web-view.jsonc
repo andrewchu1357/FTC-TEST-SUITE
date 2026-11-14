@@ -1,0 +1,18 @@
+// View-only web page of the running simulator: the field, score, match clock and robot stats,
+// live in any browser. It starts when the simulator opens and stops when it closes. Nothing on
+// the page can start, stop, pause or change anything. The Console shows the address to open.
+{
+  "enabled": true,
+  "port": 8766,
+  // Who can open the page:
+  //   "local"     - only this computer (http://localhost:8766)
+  //   "tailscale" - this computer and devices on your Tailscale tailnet
+  //                 (http://<this computer's MagicDNS name or 100.x address>:8766)
+  //   "network"   - anyone on the local network too (plain HTTP: use a network you trust)
+  "access": "local",
+  // Windows only. The first time an app opens a page to other devices, Windows Defender Firewall
+  // asks an administrator to allow it. The simulator never asks for an administrator by itself, so
+  // on Windows the page stays "local" until this is true as well (then say "Allow" in Windows'
+  // prompt once; without an administrator, leave it false).
+  "allowNetworkOnWindows": false
+}

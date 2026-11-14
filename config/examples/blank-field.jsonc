@@ -1,0 +1,32 @@
+// =============================================================================
+//  Simulated field
+// =============================================================================
+//  Origin at the field center. +x right and +y up as drawn in the viewer.
+//  Heading 0 points along +x, counter-clockwise positive (same as Road Runner).
+//
+//  This is a blank field with a few sample game pieces. Add this season's field
+//  elements as obstacles (static) and gamePieces (pushable).
+// =============================================================================
+{
+  "name": "Blank field",
+  "sizeIn": 144,                  // nominal; real fields measure about 141 in between walls
+  "tileIn": 24,
+  "wallFriction": 0.3,
+  "wallRestitution": 0.1,
+
+  // Where "Reset robot" puts the robot. You can also drag the robot in the viewer.
+  "robotStart": { "xIn": -36, "yIn": -60, "headingDeg": 90 },
+
+  // Static field elements. shape: "rect" (widthIn x heightIn), "circle" (diameterIn),
+  // or "polygon" (convex, "pointsIn": [[x, y], ...] in field coordinates).
+  "obstacles": [
+    // { "name": "Center structure", "shape": "rect", "xIn": 0, "yIn": 0, "widthIn": 24, "heightIn": 24, "color": "#6E7781" }
+  ],
+
+  // Loose game pieces the robot can push around.
+  "gamePieces": [
+    { "name": "sample", "shape": "circle", "diameterIn": 5, "massLbs": 0.17, "xIn": 36, "yIn": 12, "color": "#8E44AD" },
+    { "name": "sample", "shape": "circle", "diameterIn": 5, "massLbs": 0.17, "xIn": 36, "yIn": 0, "color": "#27AE60" },
+    { "name": "sample", "shape": "circle", "diameterIn": 5, "massLbs": 0.17, "xIn": 36, "yIn": -12, "color": "#8E44AD" }
+  ]
+}

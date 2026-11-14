@@ -1,0 +1,126 @@
+// Built-in FTC parts catalog. Values come from the manufacturers' published spec sheets.
+// massG is listed where the maker publishes it (checked October 2026; goBILDA product pages).
+// Refer to a part from robot.jsonc by its id, for example
+//   "servos": [ { "name": "claw", "type": "goBILDA-2000-25-3" } ]
+// Add your own parts (or override these) in config/parts/*.jsonc using the same format.
+// Settings given directly in robot.jsonc always win over the part's values.
+//
+// Units follow the robot config: suffix the key (Mm, In, Deg, G, Kg...).
+// Servo speeds/torques are listed at the voltages the manufacturer tests at; the simulator
+// interpolates for the robot's "servoVolts" (5 V on a Control/Expansion Hub servo port).
+{
+  "motors": [
+    { "id": "goBILDA-5203-6000", "name": "Yellow Jacket 6000 rpm (1:1)",      "vendor": "goBILDA", "sku": "5203-2402-0001",
+      "sdkName": "GoBILDA 5202/3/4 series", "ticksPerRev": 28,     "freeRpm": 6000, "stallTorqueKgCm": 1.47, "stallCurrentA": 9.2, "freeCurrentA": 0.25, "massG": 391 },
+    { "id": "goBILDA-5203-1620", "name": "Yellow Jacket 1620 rpm (3.7:1)",    "vendor": "goBILDA", "sku": "5203-2402-0003",
+      "sdkName": "GoBILDA 5202/3/4 series", "ticksPerRev": 103.8,  "freeRpm": 1620, "stallTorqueKgCm": 5.4,  "stallCurrentA": 9.2, "freeCurrentA": 0.25 },
+    { "id": "goBILDA-5203-1150", "name": "Yellow Jacket 1150 rpm (5.2:1)",    "vendor": "goBILDA", "sku": "5203-2402-0005",
+      "sdkName": "GoBILDA 5202/3/4 series", "ticksPerRev": 145.1,  "freeRpm": 1150, "stallTorqueKgCm": 7.9,  "stallCurrentA": 9.2, "freeCurrentA": 0.25, "massG": 399 },
+    { "id": "goBILDA-5203-435",  "name": "Yellow Jacket 435 rpm (13.7:1)",    "vendor": "goBILDA", "sku": "5203-2402-0014",
+      "sdkName": "GoBILDA 5202/3/4 series", "ticksPerRev": 384.5,  "freeRpm": 435,  "stallTorqueKgCm": 18.7, "stallCurrentA": 9.2, "freeCurrentA": 0.25, "massG": 438 },
+    { "id": "goBILDA-5203-312",  "name": "Yellow Jacket 312 rpm (19.2:1)",    "vendor": "goBILDA", "sku": "5203-2402-0019",
+      "sdkName": "GoBILDA 5202/3/4 series", "ticksPerRev": 537.7,  "freeRpm": 312,  "stallTorqueKgCm": 24.3, "stallCurrentA": 9.2, "freeCurrentA": 0.25, "massG": 437 },
+    { "id": "goBILDA-5203-223",  "name": "Yellow Jacket 223 rpm (26.9:1)",    "vendor": "goBILDA", "sku": "5203-2402-0027",
+      "sdkName": "GoBILDA 5202/3/4 series", "ticksPerRev": 751.8,  "freeRpm": 223,  "stallTorqueKgCm": 33.9, "stallCurrentA": 9.2, "freeCurrentA": 0.25 },
+    { "id": "goBILDA-5203-117",  "name": "Yellow Jacket 117 rpm (50.9:1)",    "vendor": "goBILDA", "sku": "5203-2402-0051",
+      "sdkName": "GoBILDA 5202/3/4 series", "ticksPerRev": 1425.1, "freeRpm": 117,  "stallTorqueKgCm": 68.4, "stallCurrentA": 9.2, "freeCurrentA": 0.25 },
+    { "id": "goBILDA-5203-84",   "name": "Yellow Jacket 84 rpm (71.2:1)",     "vendor": "goBILDA", "sku": "5203-2402-0071",
+      "sdkName": "GoBILDA 5202/3/4 series", "ticksPerRev": 1993.6, "freeRpm": 84,   "stallTorqueKgCm": 93.6, "stallCurrentA": 9.2, "freeCurrentA": 0.25 },
+    { "id": "goBILDA-5203-60",   "name": "Yellow Jacket 60 rpm (99.5:1)",     "vendor": "goBILDA", "sku": "5203-2402-0100",
+      "sdkName": "GoBILDA 5202/3/4 series", "ticksPerRev": 2786.2, "freeRpm": 60,   "stallTorqueKgCm": 133.2, "stallCurrentA": 9.2, "freeCurrentA": 0.25 },
+    { "id": "REV-HD-Hex-bare",   "name": "HD Hex Motor (no gearbox)",         "vendor": "REV",
+      "sdkName": "REV Robotics HD Hex Motor",       "ticksPerRev": 28,   "freeRpm": 6000, "stallTorqueNm": 0.105, "stallCurrentA": 8.5, "freeCurrentA": 0.4 },
+    { "id": "REV-HD-Hex-20",     "name": "HD Hex Motor, 20:1 spur gearbox",   "vendor": "REV",
+      "sdkName": "REV Robotics 20:1 HD Hex Motor",  "ticksPerRev": 560,  "freeRpm": 300,  "stallTorqueNm": 2.1,   "stallCurrentA": 8.5, "freeCurrentA": 0.4 },
+    { "id": "REV-HD-Hex-40",     "name": "HD Hex Motor, 40:1 spur gearbox",   "vendor": "REV",
+      "sdkName": "REV Robotics 40:1 HD Hex Motor",  "ticksPerRev": 1120, "freeRpm": 150,  "stallTorqueNm": 4.2,   "stallCurrentA": 8.5, "freeCurrentA": 0.4 },
+    { "id": "REV-Core-Hex",      "name": "Core Hex Motor",                    "vendor": "REV", "sku": "REV-41-1300",
+      "sdkName": "REV Robotics Core Hex Motor",     "ticksPerRev": 288,  "freeRpm": 125,  "stallTorqueNm": 3.2,   "stallCurrentA": 4.4, "freeCurrentA": 0.18 }
+  ],
+
+  // Positional servos. A CR servo ("crServos" in robot.jsonc) can use any servo here that has
+  // a continuous mode; its top speed is worked out from secPer60Deg.
+  "servos": [
+    { "id": "goBILDA-2000-25-2", "name": "2000 Series Dual Mode Servo (25-2, Torque)", "vendor": "goBILDA", "sku": "2000-0025-0002",
+      "rangeDeg": 300, "usAtRangeStart": 500, "usAtRangeEnd": 2500, "continuousMode": true,
+      "secPer60Deg4v8": 0.25, "secPer60Deg6v": 0.20, "torqueKgCm4v8": 17.2, "torqueKgCm6v": 21.6, "massG": 60 },
+    { "id": "goBILDA-2000-25-3", "name": "2000 Series Dual Mode Servo (25-3, Speed)", "vendor": "goBILDA", "sku": "2000-0025-0003",
+      "rangeDeg": 300, "usAtRangeStart": 500, "usAtRangeEnd": 2500, "continuousMode": true,
+      "secPer60Deg4v8": 0.11, "secPer60Deg6v": 0.09, "torqueKgCm4v8": 7.9, "torqueKgCm6v": 9.3, "massG": 58 },
+    { "id": "goBILDA-2000-25-4", "name": "2000 Series Dual Mode Servo (25-4, Super Speed)", "vendor": "goBILDA", "sku": "2000-0025-0004",
+      "rangeDeg": 300, "usAtRangeStart": 500, "usAtRangeEnd": 2500, "continuousMode": true,
+      "secPer60Deg4v8": 0.055, "secPer60Deg6v": 0.043, "torqueKgCm4v8": 4.0, "torqueKgCm6v": 4.7, "massG": 58 },
+    { "id": "REV-Smart-Robot-Servo", "name": "Smart Robot Servo", "vendor": "REV", "sku": "REV-41-1097",
+      "rangeDeg": 270, "usAtRangeStart": 500, "usAtRangeEnd": 2500, "continuousMode": true,
+      "secPer60Deg6v": 0.14, "torqueKgCm6v": 13.5,
+      "note": "Default 270° range; the SRS Programmer can change the range or switch to continuous mode." },
+    { "id": "Axon-MAX-MK2", "name": "Axon MAX MK2", "vendor": "Axon Robotics",
+      "rangeDeg": 180, "usAtRangeStart": 500, "usAtRangeEnd": 2500, "continuousMode": true,
+      "secPer60Deg4v8": 0.14, "torqueKgCm4v8": 28,
+      "note": "Programmable range (up to 355°). Set rangeDeg in robot.jsonc to what yours is programmed to." }
+  ],
+
+  "wheels": [
+    { "id": "goBILDA-GripForce-104mm-mecanum", "name": "GripForce 104 mm Mecanum Wheel", "vendor": "goBILDA", "sku": "3625-0202-0104",
+      "type": "mecanum", "diameterMm": 104, "massG": 236, "widthMm": 38, "rollers": 11,
+      "note": "11 silicone rollers (40A) on steel side plates; 38 mm wide." },
+    { "id": "goBILDA-96mm-mecanum", "name": "96 mm Mecanum Wheel", "vendor": "goBILDA",
+      "type": "mecanum", "diameterMm": 96, "massG": 207 }
+  ],
+
+  // Linear slide kits for "slide" mechanisms. The belt-driven Viper kits run off a 60-tooth GT2
+  // pulley, 120 mm of belt per turn: spoolDiameter 38.2 mm. massG: the kit without its motor.
+  "slides": [
+    { "id": "goBILDA-Viper-4stage-336mm", "name": "Viper-Slide Kit, 4 stage, 336 mm slides (belt)", "vendor": "goBILDA",
+      "travelMm": 976, "retractedMm": 384, "spoolDiameterMm": 38.2, "massG": 1544 },
+    { "id": "goBILDA-Viper-4stage-240mm", "name": "Viper-Slide Kit, 4 stage, 240 mm slides (belt)", "vendor": "goBILDA",
+      "travelMm": 696, "retractedMm": 288, "spoolDiameterMm": 38.2, "massG": 1220 },
+    { "id": "goBILDA-Viper-2stage-336mm", "name": "Viper-Slide Kit, 2 stage, 336 mm slides (belt)", "vendor": "goBILDA",
+      "travelMm": 488, "retractedMm": 384, "spoolDiameterMm": 38.2, "massG": 901 }
+  ],
+
+  "odometryPods": [
+    { "id": "goBILDA-4-Bar-Odometry-Pod", "name": "4-Bar Odometry Pod (32 mm wheel)", "vendor": "goBILDA",
+      "sku": "3110-0001-0002", "wheelDiameterMm": 32, "ticksPerRev": 2000, "massG": 84,
+      "note": "19.89 ticks per mm. Fits inside a 1120 U-channel (43 x 43 mm)." },
+    { "id": "goBILDA-Swingarm-Odometry-Pod", "name": "Swingarm Odometry Pod (48 mm wheel)", "vendor": "goBILDA",
+      "sku": "3110-0001-0001", "wheelDiameterMm": 48, "ticksPerRev": 2000 },
+    { "id": "REV-Through-Bore-Encoder", "name": "Through Bore Encoder", "vendor": "REV", "sku": "REV-11-1271",
+      "ticksPerRev": 8192, "note": "Set wheelDiameter in robot.jsonc to the omni wheel you mount on it." }
+  ],
+
+  "sensors": [
+    { "id": "REV-2m-Distance-Sensor", "name": "2m Distance Sensor", "vendor": "REV", "sku": "REV-31-1505",
+      "kind": "distance", "maxRangeMm": 2000 },
+    { "id": "REV-Color-Sensor-V3", "name": "Color Sensor V3", "vendor": "REV", "sku": "REV-31-1557",
+      "kind": "color" },
+    { "id": "AndyMark-Distance-Sensor", "name": "Distance Sensor (I2C, VL53L0X)", "vendor": "AndyMark", "sku": "am-5637",
+      "kind": "distance", "maxRangeMm": 2000, "note": "About 30-2000 mm. In code: AndyMarkTOF." },
+    { "id": "AndyMark-Color-Sensor", "name": "Proximity & Color Sensor", "vendor": "AndyMark",
+      "kind": "color", "note": "In code: AndyMarkColorSensor (raw colors about 0-255, classifyColor())." },
+    { "id": "REV-Touch-Sensor", "name": "Touch Sensor", "vendor": "REV", "sku": "REV-31-1425",
+      "kind": "switch" },
+    { "id": "REV-Magnetic-Limit-Switch", "name": "Magnetic Limit Switch", "vendor": "REV", "sku": "REV-31-1462",
+      "kind": "switch" },
+    { "id": "goBILDA-Pinpoint", "name": "Pinpoint Odometry Computer", "vendor": "goBILDA", "sku": "3110-0002-0002",
+      "kind": "odometry computer", "note": "Two pods plus its own IMU, fused 1500 times a second. Configure under \"pinpoints\"." },
+    { "id": "SparkFun-OTOS", "name": "Optical Tracking Odometry Sensor", "vendor": "SparkFun", "sku": "SEN-24904",
+      "kind": "optical odometry", "note": "Mount 10 mm (+/- 1 mm) above the tiles. Configure under \"otos\"." },
+    { "id": "Limelight-3A", "name": "Limelight 3A", "vendor": "Limelight", "sku": "LL3A",
+      "kind": "camera", "note": "640x480, 54.5 x 42 degrees; color pipelines 90 fps, AprilTags 50 fps. Configure under \"limelights\"." },
+    { "id": "DigitalChickenLabs-OctoQuad", "name": "OctoQuad FTC Edition MK2", "vendor": "Digital Chicken Labs",
+      "kind": "encoder interface", "note": "8 encoder channels, an IMU and a dead-wheel localizer. Configure under \"octoquads\"." },
+    { "id": "Logitech-C920", "name": "HD Pro Webcam C920", "vendor": "Logitech",
+      "kind": "camera", "note": "USB webcam (VisionPortal). SDK calibrations at 640x480, 800x600, 640x360, 1920x1080, 800x448 and 864x480. Configure under \"webcams\" with model \"C920\"." },
+    { "id": "Logitech-C270", "name": "HD Webcam C270", "vendor": "Logitech",
+      "kind": "camera", "note": "USB webcam (VisionPortal). SDK calibration at 640x480 only. Configure under \"webcams\" with model \"C270\"." },
+    { "id": "Logitech-C310", "name": "HD Webcam C310", "vendor": "Logitech",
+      "kind": "camera", "note": "USB webcam (VisionPortal). SDK calibrations at 640x480 and 640x360. Configure under \"webcams\" with model \"C310\"." },
+    { "id": "goBILDA-USB-Camera", "name": "USB Camera", "vendor": "goBILDA", "sku": "3122-0003-0001",
+      "kind": "camera", "note": "USB webcam (VisionPortal). SDK calibrations at 640x480, 800x600, 1280x720 and 1920x1080. Configure under \"webcams\" with model \"goBILDA\"." },
+    { "id": "Microsoft-LifeCam-HD-3000", "name": "LifeCam HD-3000", "vendor": "Microsoft",
+      "kind": "camera", "note": "USB webcam (VisionPortal). SDK calibration at 640x480. Configure under \"webcams\" with model \"LifeCam\"." },
+    { "id": "Generic-USB-Webcam", "name": "USB webcam (no SDK calibration)", "vendor": "Other",
+      "kind": "camera", "note": "Any other UVC webcam: AprilTag poses need setLensIntrinsics(). Configure under \"webcams\" with model \"generic\"." }
+  ]
+}

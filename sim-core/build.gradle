@@ -1,0 +1,31 @@
+plugins {
+    id 'java-library'
+}
+
+
+// Physics engine, simulated hardware, and the OpMode runner. No UI code here, so the
+// simulation can run headless (automated tests, CI, calibration runs).
+
+dependencies {
+    api project(':sdk-shim')
+    implementation 'org.dyn4j:dyn4j:5.0.2'
+
+    testImplementation platform('org.junit:junit-bom:5.11.4')
+    testImplementation 'org.junit.jupiter:junit-jupiter'
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+}
+
+test {
+    useJUnitPlatform()
+}
+
+
+// Fits the simulator to a real robot from the calibration OpModes' logs (see the README).
+// Example: gradlew calibrate --args="logs/calibration/drive-20261013-150000.csv"
+tasks.register('calibrate', JavaExec) {
+    group = 'verification'
+    description = 'Fits robot.jsonc to logs from the Calibrate Drive / Calibrate Mechanism OpModes.'
+    classpath = sourceSets.main.runtimeClasspath
+    mainClass = 'org.ftctestbed.sim.tools.Calibrate'
+    workingDir = rootProject.projectDir
+}
